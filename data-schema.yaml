@@ -1,0 +1,37 @@
+# Internal lot number is the primary key ('_id')
+
+Name: 
+CAS Number: 
+
+Amount: 
+Units: 
+  µg, mg, g, kg, µL, mL, L
+Container Type: 
+  Bottle, Ampoule, Sample vial, Conical tube, Bag, Cryovial
+Storage Condition: 
+
+Soruce:
+  Purchased, Prepared
+
+If 'Purchased':
+  Manufacturer: 
+  Lot/Batch Number: 
+  Internal Lot Number:
+If 'Prepared':
+  Internal Lot Number: 
+  Components:
+    Component 1:
+      Name: 
+      Amount: 
+      Units: 
+      Internal Lot Number:
+    Component 2:
+      Name: 
+      Amount: 
+      Units: 
+      Internal Lot Number:
+
+
+Received Date: 
+Opened Date: 
+Expiry Date: 

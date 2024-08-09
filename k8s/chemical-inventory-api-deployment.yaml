@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chemical-inventory-api-v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chemical-inventory-api-v1
+  template:
+    metadata:
+      labels:
+        app: chemical-inventory-api-v1
+    spec:
+      containers:
+      - name: chemical-inventory-api-v1-container
+        image: chemical-inventory-api-v1-image:latest
+        ports:
+        - containerPort: 5000
