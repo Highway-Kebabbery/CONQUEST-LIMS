@@ -1,0 +1,66 @@
+* Need to install WSL
+* Need to install Docker
+
+* Need to initiate Docker
+
+Setting up dev environment: https://learn.microsoft.com/en-us/windows/python/web-frameworks
+    Write my own instructions. but note that they can r eference this page for help
+
+So this seems to be the master instruction for setting up dev environment:
+https://learn.microsoft.com/en-us/windows/wsl/setup/environment
+End user will need to:
+* Set up WSL
+* Set up Docker
+* Set up Minikube
+* ...maybe that's all? I should be able to write the setup of python and mongodb and ElasticSearch into the dockerfiles, right?
+    * When writing code to install mongodb, I need to account for which version of Ubuntu they use (btw, note that it needs to be run on Ubuntu) https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#std-label-install-mdb-community-ubuntu
+
+_____
+Setup Strategy Summary (for scratchpad)
+
+    User installs WSL and a specified version of Ubuntu (e.g., 22.04).
+
+    A single shell script (setup.sh) handles:
+
+        Installing required tools: curl, lsb-release, apt-transport-https, etc.
+
+        Installing and configuring Docker and Minikube
+
+        Setting up environment variables or adding users to the docker group
+
+    The script can detect Ubuntu version with lsb_release -cs and use it to correctly build MongoDB and other APT source list entries.
+
+    Use requirements.txt to pin Python dependencies like:
+
+flask==2.3.3
+pymongo==4.6.1
+
+In Dockerfiles, pin base image versions like:
+
+FROM python:3.11-slim
+
+Pin image versions in Kubernetes manifests or docker-compose.yml like:
+
+    image: mongo:6.0.13
+
+    Script should also install:
+
+        kubectl
+
+        helm (optional)
+
+        Any dev utilities you rely on (e.g., jq, make, etc.)
+
+End goal: user installs WSL + Ubuntu, then runs your setup.sh script to provision a full dev environment — no manual Python, MongoDB, or Docker setup needed.
+_____
+
+
+May want to include in setup script something to set uLimits for MongoDB (this may also affect elasticsearch)
+
+running mongodb: https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#std-label-install-mdb-community-ubuntu
+
+need to install pymongo and pytest with python container. DO NOT IMPORT bson because that comes with pymongo, but theres an Ubuntu bson package and it won't work. You'll have to do a clean reinstall of pymongo after removing bson if you install it.
+
+FOR TESTS ONLY: Install pytest and mongomock
+
+run `pytest` from root directory to test for now. There's another way to do it if I structure the project as a module later, which I don't know if I'm gong to do

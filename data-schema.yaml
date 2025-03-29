@@ -24,7 +24,7 @@ Storage Condition: type=str
 Source:
   Purchased, Prepared
 
-# Note that _id is required. I want to set the format.
+# Note that _id is required. I want to set the format myself, gonna go research how to do that.
 # On loading the front end, _id should display as 'Internal Lot Number'.
 If 'Purchased':
   Manufacturer: 
