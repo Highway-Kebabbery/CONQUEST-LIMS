@@ -40,20 +40,30 @@ the static data on the `lots` documents as well as on `chemicals`
 same time I GET /lots and join the data (longer loading time when user needs all
 lot data, more operations, but much less redundant data). I can probably still
 use `chemicals` to harmonize lot entry, and just have slightly larger documents
-that load more quickly (`lots`) (fewer requests to server) because primarily I need
-things to run quick for the analysts who absolutely hate any minor inconvenience
-coming from a computer. When lot is entered (less frequent operation 
-than GET /lots), I can maybe make another call within this function to pull
-the specific chemical I'm adding and then use that JSON object to load the 
-fields in the `lots` JSON object on the back end?
+that load more quickly (`lots`) (fewer requests to server) because primarily I 
+needthings to run quick for the analysts who absolutely hate any minor
+inconvenience coming from a computer. When lot is entered (less frequent
+operation than GET /lots), I can maybe make another call within this function
+to pull the specific chemical I'm adding and then use that JSON object to load 
+the fields in the `lots` JSON object on the back end?
     * When there's a front end, I (am not a front-end engineer in any sense of
     the word but I) think I'd be able to cache the GET /chemicals request I made
     when the page laoded and then use that to fill out the duplicated fields for
-    the `lots` document? However, if I have to pull the chemical to validate data
-    entry, then I may as well just fill those fields in on the back-end, right?
-    Handling that on the back-end would replace validation because I can guarantee
-    the front-end engineer can't mess it up if they're not responsible for sending
-    those data.
+    the `lots` document? However, if I have to pull the chemical to validate 
+    data entry, then I may as well just fill those fields in on the back-end,
+    right? Handling that on the back-end would replace validation because I 
+    can guarantee the front-end engineer can't mess it up if they're not 
+    responsible for sending those data.
+* So then: `chemicals` documents contain all static data for one type of 
+chemical, and `lots` documents contain those static data from `chemicals` 
+corresponding to the type of chemical being built (pulled from /chemical/<id> 
+and added automatically) as well as dynamic data related to that lot. This 
+allows for fewer operation when requesting to GET /lots, which would be the 
+most frequent operation.
+
+***Pick back up by re-organizing fields on chemicals and lots documents. Add
+aggregate quantity to chemicals documents. Who cares about price? Let
+procurement manage that with their own software HAHAHA.
 
 """
 
