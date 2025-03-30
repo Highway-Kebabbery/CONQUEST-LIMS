@@ -1,27 +1,36 @@
 from bson import ObjectId
 
+
+"""
+Need to update to reflect database structure of chemicals and lots collections
+"""
+
 def test_manage_specific_chemicals(client):
     test_chemical = {
-        "name": "Acetone, USP Standard",
+        "Name": "Acetone-d6, SPEX CertiPrep",
         "CAS Number": "67-64-1",
         "Amount": 1,
         "Units": "mL",
         "Container Type": "Ampoule",
-        "Storage Condition": "Ambient",
+        "Storage Condition": "2-8 °C",
+        "Classification": "Standard",
         "Source": "Purchased",
         "Manufacturer": "Fisher Scientific",
+        "Manufacturer Part Number": "S-141",
         "Lot/Batch Number": "458GD65B-001"
     }
 
     updated_test_chemical = {
-        "name": "Methanol, 40 % v/v in Water",
+        "Name": "Mobile Phase B, Methanol, 40 % v/v in Water",
         "CAS Number": "67-56-1, 7732-18-5",
-        "Amount": 1.5,
-        "Units": "mL",
-        "Container Type": "Autosampler Vial",
-        "Storage Condition": "2-8 °C",
+        "Amount": 1,
+        "Units": "L",
+        "Container Type": "Bottle",
+        "Storage Condition": "Ambient",
+        "Classification": "Mobile Phase",
         "Source": "Prepared",
         "Date Prepared": "29-Mar-2025",
+        "Internal Lot Number": "30Mar2025-NRW-001",
         "Components": {
             "Comopnent 1": {
                 "Name": "Water, In-House",
