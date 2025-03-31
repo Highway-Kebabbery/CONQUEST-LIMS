@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
 from bson.errors import InvalidId
+from decimal import *
 
 """
 This project is in-progress. If I have to apply for a job before it's
@@ -77,9 +78,128 @@ if not hasattr(app, "mongo_client"):
     app.chemicals = app.db.chemicals    # chemicals collection can be thought of as a class (if you're a tech nerd).
     app.lots = app.db.lots  # lots collection represents instances of the chemicals class which stores dynamic data on each physical bottle in the lab.
 
+class ChemicalDocument():
+    # Explain what a chemical class is as opposed to a lot. Explain why the addition of chemicals
+    # and lots harmonizes data despite creating some redundancy, and why the addition of lots and
+    # chemicals are isolated actions.
+    def __init__(self, data):
+        # __fields dictates both the required fields and their data type
+        self.__fields = {
+            "Name": str,
+            "CAS Number": str,
+            "Source": str,
+            "Available Quantity": int,
+            "Classification": str
+        }
+        self.__sources = [
+            "Purchased",
+            "Prepared"
+        ]
+        self.__classifications = [
+            "Flammable Solvent",
+            "Strong Acid",
+            "Weak Acid",
+            "Strong Base",
+            "Weak Base",
+            "Mobile Phase",
+            "Reagent",
+            "Standard",
+            "Solid",
+            "Dewer",
+            "Gas Cylinder"
+        ]
+        self.__request_data = data
+    
+    @property
+    def fields(self):
+        return self.__fields
+
+    def validate_chemical_form(self):
+        """
+        Don't forget to include what each error_type means in final docstring
+        """
+        bad_key = None
+        error_type = 0
+        
+        for key in self.__fields:
+            if not key in self.__request_data:
+                bad_key = str(key)
+                error_type = 1
+                break
+            elif type(self.__request_data[key]) != self.__fields[key]:
+                bad_key = str(key)
+                error_type = 2
+                break
+            elif key == "Source":
+                if not self.__request_data[key] in self.__sources:
+                    bad_key = str(key)
+                    error_type = 3
+                    break
+            elif key == "Classification":
+                if not self.__request_data[key] in self.__classifications:
+                    bad_key = str(key)
+                    error_type = 4
+                    break
+        return [bad_key, error_type]
+
+class LotDocument():
+    # When writing docstring, note that redundancy of chemical fields in lots documents 
+    # was chosen because they're needed when getting all lots, and that happens far
+    # more often than adding a chemical (the other time they're needed together with
+    # lot fields), so slightly larger documents and fewer server requests will be faster
+    # on average than having a sctricter separation of concerns in the database. That's
+    # also a good point for showing that I'm thinking about the right thing with the
+    # document-based database (Add to "Things I learned" section of README.)
+    def __init__(self):
+        self.__chemical_fields = {
+            "Name": str,
+            "CAS Number": str,
+            "Source": str,
+            "Available Quantity": int,
+            "Classification": str
+        }
+        self.__lot_fields_purchased = {
+            "Manufacturer": str,
+            "Manufacturer Part Number": str,
+            "Manufacturer Lot/Batch Number": str,
+            "Internal Lot Number": str,
+            "Amount": float,
+            "Units": str,               # Need list of valid units
+            "Container Type": str,      # Need list of valid container types
+            "Storage Condition": str,   # Need list of valid storage conditions
+            "Opened Date": str,
+            "Expired Date": str,
+            "Empty Date": str
+        }
+        self.__lot_fields_prepared = {
+
+            #It is absolutely imperative that `Amount`s are converted to Decimal()
+            #when arithmetic is performed, but float works for the data type validation
+            #this dictionary is used for.
+
+            "Internal Lot Number": str,
+            "Amount": float,
+            "Units": str,
+            "Container Type": str,
+            "Storage Condition": str,
+            "Preparation Date": str,    # Come back and figure out date validation later
+            # Not sure how to validate yet. Ensure each prepared lto has at least one component
+            # Ensure each component has the right keys. For loop on keys w/in `Components` when
+            # key in outer loop == "Components"?
+            "Expired Date": str,
+            "Empty Date": str,
+            "Components": {
+                "Component n": {
+                    "Name": str,
+                    "Internal Lot Number": str,                  
+                    "Amount": float,
+                    "Units": str,
+                }
+            }
+        }
 
 @app.route("/chemicals", methods=["GET", "POST"])
-def manage_general_chemicals():
+def manage_chemicals():
     if request.method == "GET":
         # List all chemicals
         all_chemicals = list(app.chemicals.find())
@@ -91,37 +211,56 @@ def manage_general_chemicals():
     elif request.method == "POST":
         # Add a new chemical
         data = request.get_json()
-        
-        # Come back later to add a function, defined above the app routes, that validates the request body format
-        # When the validation function is written, have it return a Bool to keep this structure essentially the same.
-        if not data or "name" not in data:
-            response = jsonify({"Error: Missing 'Name' field."}), 400
+        new_chemical = ChemicalDocument(data)
+
+        if not data:
+            response = jsonify({"error": "Missing request body"}), 400
         else:
-            result = app.chemicals.insert_one(
-                {
-                    "name": data["name"]    # To be fleshed out
-                }
-            )
-            response = jsonify({"inserted_id": str(result.inserted_id)}), 201
-    
+            # Validate data and check for extraneous keys in request
+            form_val = new_chemical.validate_chemical_form()
+            unexpected_keys = [key for key in data if key not in new_chemical.fields]
+
+            if unexpected_keys:
+                response = jsonify({"error": f"Unexpected fields: {unexpected_keys}."}), 422
+            else:    
+                if form_val[0]:
+                    if form_val[1] == 1:
+                        msg = f"Missing required field: {form_val[0]}."
+                        response = jsonify({"error": msg}), 422
+                    elif form_val[1] == 2:
+                        msg = f"Incorrect data type for field: {form_val[0]}."
+                        response = jsonify({"error": msg}), 422
+                    elif form_val[1] == 3:
+                        msg = 'Invalid entry for "Source" field.'
+                        response = jsonify({"error": msg}), 422
+                    elif form_val[1] == 4:
+                        msg = 'Invalid entry for "Classification" field.'
+                        response = jsonify({"error": msg}), 422
+                else:
+                    result = app.chemicals.insert_one({
+                            # Insert only data validated to go in this document.
+                            key: data[key] for key in new_chemical.fields
+                        })
+                    response = jsonify({"inserted_id": str(result.inserted_id)}), 201
+        
     else:
-        response = {"error: Method not allowed", 405}
+        response = jsonify({"error": "Method not allowed"}), 405
     
     return response
 
 @app.route("/chemicals/<chemical_id>", methods=["GET", "PUT", "DELETE"])
-def manage_specific_chemical(chemical_id):
+def manage_chemical(chemical_id):
     if request.method == "GET":
         # Fetch a specific chemical
         try:
             result = app.chemicals.find_one({"_id": ObjectId(chemical_id)})
             if result == None:
-                response = {"error": "Not found"}, 404
+                response = jsonify({"error": "Not found"}), 404
             else:
                 result["_id"] = str(result["_id"])
                 response = jsonify(result), 200
         except InvalidId:
-            response = {"error": "Invalid ID format"}, 400
+            response = jsonify({"error": "Invalid ID format"}), 400
     
     elif request.method == "PUT":
         # Update an existing chemical
@@ -132,19 +271,19 @@ def manage_specific_chemical(chemical_id):
         try:
             result = app.chemicals.delete_one({"_id": ObjectId(chemical_id)})
             if result.deleted_count == 0:
-                response = {"error": "Not found"}, 404
+                response = jsonify({"error": "Not found"}), 404
             else:
                 response = "", 204
         except InvalidId:
-            response = {"error": "Invalid ID format"}, 400   
+            response = jsonify({"error": "Invalid ID format"}), 400   
 
     else:
-        response = {"error: Method not allowed", 405}
+        response = jsonify({"error": "Method not allowed"}), 405
     
     return response
 
 @app.route("/lots", methods=["GET", "POST"])
-def manage_general_lots():
+def manage_lots():
     if request.method == "GET":
         # Get all lots
         pass
@@ -152,12 +291,12 @@ def manage_general_lots():
         # Create new lot
         pass
     else:
-        response = {"error: Method not allowed", 405}
+        response = jsonify({"error": "Method not allowed"}), 405
     
     return response
     
-@app.route("/lots/<lot_id>", method=["GET", "PUT", "DELETE"])
-def manage_specific_lots():
+@app.route("/lots/<lot_id>", methods=["GET", "PUT", "DELETE"])
+def manage_lot():
     if request.method == "GET":
         # Get specific lot
         pass
@@ -168,7 +307,7 @@ def manage_specific_lots():
         # Delete specific lot
         pass
     else:
-        response = {"error: Method not allowed", 405}
+        response = jsonify({"error": "Method not allowed"}), 405
 
     return response
 
