@@ -169,10 +169,11 @@ class ChemicalDocument():
             
             "Prepared Fields": {
                 "Method Reference": str
-            },
+            }
             
-            "Available Total": int,
-            "Available Open": int
+            # When the document is built, the following fields are added as well:
+            # "Available Total": int,
+            # "Available Open": int
         }
         self.__request_data = data
     
@@ -187,89 +188,122 @@ class ChemicalDocument():
         error_info = [None, 0]  # bad_key, error_type
         field_lists = Lists()
 
-        def value_in_set(value, value_set):
-            return value in value_set
+        def get_keys_two_levels(dictionary):
+            # Finds all keys in a two-level dictionary
+            keys = set()
+            for key, value in dictionary.items():
+                if isinstance(value, dict):
+                    for subkey in value:
+                        keys.add(f"{key}.{subkey}")
+                else:
+                    keys.add(key)
+            return keys
+
+        # Validate Source first to simplify paths
+        if error_info[0] == None:
+            source_key = "Source"
+            if not source_key in self.__request_data:
+                error_info = [source_key, 1]
+            elif not type(self.__request_data[source_key]) == self.__fields[source_key]:
+                error_info = [source_key, 2]
+            elif not self.__request_data[source_key] in field_lists.sources:
+                error_info = [source_key, 3]
+
+        # Check for extraneous fields 
+        if error_info[0] == None:  
+            schema_keys = get_keys_two_levels(schema_keys)
+            
+            if self.__request_data[source_key] == "Purchased":
+                irrelevant_keys = get_keys_two_levels(self.__fields["Prepared Fields"])
+            else:
+                irrelevant_keys = get_keys_two_levels(self.__fields["Purchased Fields"])
+            
+            schema_keys = schema_keys - irrelevant_keys
+            request_keys = get_keys_two_levels(self.__request_data)
+            extra_keys = list(request_keys - schema_keys)
+
+            if extra_keys:
+                error_info = [extra_keys, 4]
         
-        def data_type_match(test_value, target_type):
-            # Expects piece of data and a data type as input.
-            return type(test_value) == target_type
-            
-        def set_error_parameters(bad_key, error_type):
-            bad_key = str(bad_key)
-            error_type = error_type
-
-        for key in self.__fields:            
-            # Check "Purchased Fields" and "Prepared Fields" first because they'll fail
-            # value_in_set(key, self.__request_data). They `continue` the outer loop if
-            # data is acceptable to avoid this pitfall.
-            
-            continue_flag = False
-
-            if key == "Purchased Fields":
-                for inner_key in self.__fields[key]:
-                    if not value_in_set(inner_key, self.__request_data):
-                        error_info = [inner_key, 1]
+        # Validate remaining fields. Assumes "Source" is last shared field.
+        if error_info[0] == None:
+            for key in self.__fields:
+                if not key in ["Source", "Purchased Fields", "Prepared Fields"]:
+                    if not key in self.__request_data:
+                        error_info = [key, 1]
                         break
-                    elif not data_type_match(self.__request_data[inner_key], self.__fields[key][inner_key]):
-                        error_info = [inner_key, 2]
+                    elif not type(self.__request_data[key]) == self.__fields[key]:
+                        error_info = [key, 2]
                         break
-                    elif inner_key == "Units":
-                        if not value_in_set(self.__request_data[inner_key], field_lists.units):
-                            error_info = [inner_key, 3]
-                            break
-                    elif inner_key == "Container Type":
-                        if not value_in_set(self.__request_data[inner_key], field_lists.containers):
-                            error_info = [inner_key, 3]
-                            break
-                    else:
-                        continue_flag = True
-
-                # See comment for outer loop
-                if continue_flag:
-                    continue
+                    elif key == "Classification":
+                        if not self.__request_data[key] in field_lists.classifications:
+                            error_info = [key, 3]
+                        break
+                    elif key == "Storage Condition":
+                        if not self.__request_data[key] in field_lists.storage_conditions:
+                            error_info = [key, 3]
+                        break
                 else:
+                    # "Source" is only used to enter this code block; it's evaluated above.
+                    # `key` stuck == "Source" in this block so new `key`-like variables are created.
+                    if self.__request_data[key] == "Purchased":
+                        # Validate "Purchased Fields" itself
+                        outer_key = "Purchased Fields"
+
+                        if not outer_key in self.__request_data:
+                            error_info = [outer_key, 1]
+                            break
+                        elif not type(self.__request_data[outer_key]) == type(self.__fields[outer_key]):
+                            error_info = [outer_key, 2]
+                            break
+
+                        # Validate contents of "Purchased Fields"
+                        purch_inner_dict = self.__fields["Purchased Fields"]
+                        req_inner_dict = self.__request_data["Purchased Fields"]
+
+                        for inner_key in purch_inner_dict:
+                            if not inner_key in req_inner_dict:
+                                error_info = [inner_key, 1]
+                                break
+                            elif not type(req_inner_dict[inner_key]) == purch_inner_dict[inner_key]:
+                                error_info = [inner_key, 2]
+                                break
+                            elif inner_key == "Units":
+                                if not req_inner_dict[inner_key] in field_lists.units:
+                                    error_info = [inner_key, 3]
+                                    break
+                            elif inner_key == "Container Type":
+                                if not req_inner_dict[inner_key] in field_lists.containers:
+                                    error_info = [inner_key, 3]
+                                    break
+                    
+                    elif self.__request_data[key] == "Prepared":
+                        # Validate "Prepared Fields" itself
+                        outer_key = "Prepared Fields"
+
+                        if not outer_key in self.__request_data:
+                            error_info = [outer_key, 1]
+                            break
+                        elif not type(self.__request_data[outer_key]) == type(self.__fields[outer_key]):
+                            error_info = [outer_key, 2]
+                            break
+
+                        # Validate contents of "Prepared Fields"
+                        prep_inner_dict = self.__fields["Prepared Fields"]
+                        req_inner_dict = self.__request_data["Prepared Fields"]
+
+                        for inner_key in prep_inner_dict:
+                            if not inner_key in req_inner_dict:
+                                error_info = [inner_key, 1]
+                                break
+                            elif not type(req_inner_dict[inner_key]) == prep_inner_dict[inner_key]:
+                                error_info = [inner_key, 2]
+                                break
+
+                if not error_info[0] == None:
+                    # This is in the event that inner loops found invalid data
                     break
-
-            elif key == "Prepared Fields":
-                for inner_key in self.__fields[key]:
-                    if not value_in_set(inner_key, self.__request_data):
-                        error_info = [inner_key, 1]
-                        break
-                    elif not data_type_match(self.__request_data[inner_key], self.__fields[key][inner_key]):
-                        error_info = [inner_key, 2]
-                        break
-                    else:
-                        continue_flag = True
-                
-                # See comment for outer loop
-                if continue_flag:
-                    continue
-                else:
-                    break
-
-            elif not value_in_set(key, self.__request_data):
-                error_info = [key, 1]
-                break
-
-            elif not data_type_match(self.__request_data[key], self.__fields[key]):
-                error_info = [key, 2]
-                break
-
-            elif key == "Classification":
-                if not value_in_set(self.__request_data[key], field_lists.classifications):
-                    error_info = [key, 3]
-                    break
-
-            elif key == "Storage Condition":
-                if not value_in_set(self.__request_data[key], field_lists.storage_conditions):
-                    error_info = [key, 3]
-                    break
-
-            elif key == "Source":
-                if not value_in_set(self.__request_data[key], field_lists.sources):
-                    error_info = [key, 3]
-                    break
-                
+       
         return error_info
 
 class LotDocument():
@@ -361,52 +395,50 @@ def manage_chemicals():
             for key in data_structure:
                 if data["Source"] == "Purchased":
                     if key == "Purchased Fields":
-                        for inner_key in data_structure[key]:
-                            record[inner_key] = data[inner_key]
+                        record[key] = {
+                            inner_key: data[key][inner_key] for inner_key in data_structure[key]
+                            }
                     elif key == "Prepared Fields":
                         continue
-                    elif key in ["Available Total", "Available Open"]:
-                        record[key] = 0
                     else:
                         record[key] = data[key]
                 elif data["Source"] == "Prepared":
                     if key == "Purchased Fields":
                         continue
                     elif key == "Prepared Fields":
-                        for inner_key in data_structure[key]:
-                            record[inner_key] = data[inner_key]
-                    elif key in ["Available Total", "Available Open"]:
-                        record[key] = 0
+                        record[key] = {
+                            inner_key: data[key][inner_key] for inner_key in data_structure[key]
+                            }
                     else:
                         record[key] = data[key]
-            
-            return record
 
+            record["Available Total"] = 0
+            record["Available Open"] = 0
+
+            return record
 
         if not data:
             response = jsonify({"error": "Missing request body"}), 400
         else:
             # Validate data and check for extraneous keys in request
             form_val = new_chemical.validate_chemical_form()
-            unexpected_keys = [key for key in data if key not in new_chemical.fields]
 
-            if unexpected_keys:
-                response = jsonify({"error": f"Unexpected fields: {unexpected_keys}."}), 422
-            else:    
-                if form_val[0]:
-                    if form_val[1] == 1:
-                        msg = f"Missing required field: {form_val[0]}."
-                        response = jsonify({"error": msg}), 422
-                    elif form_val[1] == 2:
-                        msg = f"Incorrect data type for field: {form_val[0]}."
-                        response = jsonify({"error": msg}), 422
-                    elif form_val[1] == 3:
-                        msg = f'Invalid entry of correct data type for {form_val[0]}.'
-                        response = jsonify({"error": msg}), 422
-                else:
+            match form_val[1]:
+                case 0:
                     record = build_record(data, new_chemical.fields)
                     result = app.chemicals.insert_one(record)
                     response = jsonify({"inserted_id": str(result.inserted_id)}), 201
+                case 1:
+                    msg = f"Missing required field: {form_val[0]}."
+                    response = jsonify({"error": msg}), 422
+                case  2:
+                    msg = f"Incorrect data type for field: {form_val[0]}."
+                    response = jsonify({"error": msg}), 422
+                case 3:
+                    msg = f'Invalid entry of correct data type for {form_val[0]}.'
+                    response = jsonify({"error": msg}), 422
+                case 4:
+                    response = jsonify({"error": f"Unexpected fields: {form_val[0]}."}), 422
         
     else:
         response = jsonify({"error": "Method not allowed"}), 405
