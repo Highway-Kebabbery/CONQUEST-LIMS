@@ -1,20 +1,19 @@
-from bson import ObjectId
-
 def test_manage_general_chemicals(client):
-    test_chemical = {
-        "name": "Methanol",
+    test_good_chemical = {
+        "Name": "Methanol (Certified ACS), Fisher Chemical",
         "CAS Number": "67-56-1",
-        "Amount": 4,
-        "Units": "L",
-        "Container Type": "Bottle",
-        "Storage Condition": "Ambient",
-        "Source": "Purchased",
-        "Manufacturer": "Fisher Scientific",
-        "Lot/Batch Number": "16J289F"
+        "Classification": "Flammable Solvent",
+        "Source": "Purchased"
     }
+    test_bad_name = {}
+    test_bad_cas = {}
+    test_bad_classification_type = {}
+    test_bad_classification_value = {}
+    test_bad_source_type = {}
+    test_bad_source_value = {}
 
     # Create
-    response = client.post("/chemicals", json=test_chemical)
+    response = client.post("/chemicals", json=test_good_chemical)
     assert response.status_code == 201
     chemical_id = response.json["inserted_id"]
     
