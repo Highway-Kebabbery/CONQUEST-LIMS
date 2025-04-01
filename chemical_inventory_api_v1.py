@@ -461,6 +461,7 @@ def manage_chemical(chemical_id):
     
     elif request.method == "PUT":
         # Update an existing chemical
+        ########### Move build_record() to ChemicalDocument.build_record for reuse here
         pass
 
     elif request.method == "DELETE":
