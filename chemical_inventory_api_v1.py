@@ -92,8 +92,10 @@ to get the chemical _id then proceed as usual (submitting a request with that _i
     # also a good point for showing that I'm thinking about the right thing with the
     # document-based database (Add to "Things I learned" section of README.)
 
-Note in docs that all dates received are converted to UTC, so they should be sent as local times with a timezone.
+Note in docs that all dates must be received as strings in ISO 8601 format and are converted to UTC, so they should be sent as local times with a timezone.
 Note i ndocs that all dates are served to front-end as UTC dates.
+
+
     
 """
 
@@ -177,7 +179,17 @@ class Lists():
 
 field_lists = Lists()
 
-class ChemicalSchema():
+class ValidationErrorCodes():
+    MISS_REQ_FIELD = 1
+    WRONG_TYPE = 2
+    INVAL_LIST_ENTRY = 3
+    UNEXP_FIELD = 4
+    CHEM_NOT_FOUND = 5
+    WRONG_DATE_FORMAT = 6
+    MISSING_COMP = 7
+
+
+class ChemicalSchema(ValidationErrorCodes):
     # Explain what a chemical class is as opposed to a lot. Explain why the addition of chemicals
     # and lots harmonizes data despite creating some redundancy, and why the addition of lots and
     # chemicals are isolated actions.
@@ -241,26 +253,29 @@ class ChemicalSchema():
         self.__current_avail_open = 0
 
     @staticmethod
-    def get_schema_dict_keys(dictionary):
+    def get_schema_keys(dictionary):
         # Returns all keys in a two-level dictionary or a dict-list-dict object as a list()
         # as well as the number of elements in the list if one value was a list
         # Expects that only one value in the dict will be a list. Need to know how many elements
         # exist because I need to know how many duplicates to expect to catch missing/extra
         # fields in lot validation of component fields.
         keys = []
+        num_list_elements = 0
+
         for key, value in dictionary.items():
             if isinstance(value, dict):
                 for subkey in value:
                     keys.append(f"{key}.{subkey}")
             elif isinstance(value, list):
-                num_elements = 0
+                
                 for element in value:
-                    num_elements += 1
+                    num_list_elements += 1
                     for subkey in element:
                         keys.append(f"{key}.{subkey}")
             else:
                 keys.append(key)
-        return [keys, num_elements]
+
+        return [keys, num_list_elements]
     
     def query_current_totals(self, lots_collection, chemical_id):
         # This function sets and returns the self.__current_avail_total and 
@@ -312,28 +327,28 @@ class ChemicalSchema():
         # Validate "Source" first to simplify paths
         if error_info[0] == None:
             if not self.SOURCE_KEY in self._chem_request_data:
-                error_info = [self.SOURCE_KEY, 1]
+                error_info = [self.SOURCE_KEY, self.MISS_REQ_FIELD]
             elif not type(self._chem_request_data[self.SOURCE_KEY]) == self.CHEMICAL_SCHEMA[self.SOURCE_KEY]:
-                error_info = [self.SOURCE_KEY, 2]
+                error_info = [self.SOURCE_KEY, self.WRONG_TYPE]
             elif not self._chem_request_data[self.SOURCE_KEY] in field_lists.sources:
-                error_info = [self.SOURCE_KEY, 3]
+                error_info = [self.SOURCE_KEY, self.INVAL_LIST_ENTRY]
 
         # Check for extra/missing fields 
         if error_info[0] == None: 
-            request_keys = ChemicalSchema.get_schema_dict_keys(
+            request_keys = ChemicalSchema.get_schema_keys(
                 self._chem_request_data
                 )
-            schema_keys = ChemicalSchema.get_schema_dict_keys(
+            schema_keys = ChemicalSchema.get_schema_keys(
                 self.CHEMICAL_SCHEMA
                 )
             
             if self._chem_request_data[self.SOURCE_KEY] == "Purchased":
-                irrelevant_keys = ChemicalSchema.get_schema_dict_keys(
+                irrelevant_keys = ChemicalSchema.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PREP_FIELD_KEY]
                     )
                 irrelevant_keys.append(self.PREP_FIELD_KEY)
             else:
-                irrelevant_keys = ChemicalSchema.get_schema_dict_keys(
+                irrelevant_keys = ChemicalSchema.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PURCH_FIELD_KEY]
                     )
                 irrelevant_keys.append(self.PURCH_FIELD_KEY)
@@ -343,32 +358,27 @@ class ChemicalSchema():
             request_keys = request_keys[0]
 
             extra_keys = list(request_keys - schema_keys)
-            missing_keys = list(schema_keys - request_keys)
 
             if extra_keys:
-                error_info = [extra_keys, 4]
-            if missing_keys:
-                error_info = [missing_keys, 1]
+                error_info = [extra_keys, self.UNEXP_FIELD]
         
         # Validate remaining fields. Assumes "Source" is last shared field.
-
-        #####If missing_keys check doesn't work above then add back these commented out sections
         if error_info[0] == None:
             for key in self.CHEMICAL_SCHEMA:
                 if not key in [self.SOURCE_KEY, self.PURCH_FIELD_KEY, self.PREP_FIELD_KEY]:
-                    #if not key in self._chem_request_data:
-                    #    error_info = [key, 1]
-                    #    break
+                    if not key in self._chem_request_data:
+                        error_info = [key, self.MISS_REQ_FIELD]
+                        break
                     if not type(self._chem_request_data[key]) == self.CHEMICAL_SCHEMA[key]:
-                        error_info = [key, 2]
+                        error_info = [key, self.WRONG_TYPE]
                         break
                     elif key == self.CLASSIF_KEY:
                         if not self._chem_request_data[key] in field_lists.classifications:
-                            error_info = [key, 3]
+                            error_info = [key, self.INVAL_LIST_ENTRY]
                         break
                     elif key == self.STORAGE_KEY:
                         if not self._chem_request_data[key] in field_lists.storage_conditions:
-                            error_info = [key, 3]
+                            error_info = [key, self.INVAL_LIST_ENTRY]
                         break
                 else:
                     # "Source" is only used to enter this code block; it's evaluated above.
@@ -377,11 +387,11 @@ class ChemicalSchema():
                         # Validate "Purchased Fields" itself
                         outer_key = self.PURCH_FIELD_KEY
 
-                        #if not outer_key in self._chem_request_data:
-                        #    error_info = [outer_key, 1]
-                        #    break
+                        if not outer_key in self._chem_request_data:
+                            error_info = [outer_key, self.MISS_REQ_FIELD]
+                            break
                         if not type(self._chem_request_data[outer_key]) == type(self.CHEMICAL_SCHEMA[outer_key]):
-                            error_info = [outer_key, 2]
+                            error_info = [outer_key, self.WRONG_TYPE]
                             break
 
                         # Validate contents of "Purchased Fields"
@@ -389,34 +399,34 @@ class ChemicalSchema():
                         req_inner_dict = self._chem_request_data[outer_key]
 
                         for inner_key in purch_inner_dict:
-                            #if not inner_key in req_inner_dict:
-                            #    error_info = [inner_key, 1]
-                            #    break
+                            if not inner_key in req_inner_dict:
+                                error_info = [inner_key, self.MISS_REQ_FIELD]
+                                break
                             if isinstance(purch_inner_dict[inner_key], list):
                                 if not type(req_inner_dict[inner_key]) in purch_inner_dict[inner_key]:
-                                    error_info = [inner_key, 2]
+                                    error_info = [inner_key, self.WRONG_TYPE]
                                     break
                             elif not type(req_inner_dict[inner_key]) == purch_inner_dict[inner_key]:
-                                error_info = [inner_key, 2]
+                                error_info = [inner_key, self.WRONG_TYPE]
                                 break
                             elif inner_key == self.UNIT_KEY:
                                 if not req_inner_dict[inner_key] in field_lists.units:
-                                    error_info = [inner_key, 3]
+                                    error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
                             elif inner_key == self.CONT_TYPE_KEY:
                                 if not req_inner_dict[inner_key] in field_lists.containers:
-                                    error_info = [inner_key, 3]
+                                    error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
                     
                     elif self._chem_request_data[key] == "Prepared":
                         # Validate "Prepared Fields" itself
                         outer_key = self.PREP_FIELD_KEY
 
-                        #if not outer_key in self._chem_request_data:
-                        #    error_info = [outer_key, 1]
-                        #    break
+                        if not outer_key in self._chem_request_data:
+                            error_info = [outer_key, self.MISS_REQ_FIELD]
+                            break
                         if not type(self._chem_request_data[outer_key]) == type(self.CHEMICAL_SCHEMA[outer_key]):
-                            error_info = [outer_key, 2]
+                            error_info = [outer_key, self.WRONG_TYPE]
                             break
 
                         # Validate contents of "Prepared Fields"
@@ -424,11 +434,11 @@ class ChemicalSchema():
                         req_inner_dict = self._chem_request_data[outer_key]
 
                         for inner_key in prep_inner_dict:
-                            #if not inner_key in req_inner_dict:
-                            #    error_info = [inner_key, 1]
-                            #    break
+                            if not inner_key in req_inner_dict:
+                                error_info = [inner_key, self.MISS_REQ_FIELD]
+                                break
                             if not type(req_inner_dict[inner_key]) == prep_inner_dict[inner_key]:
-                                error_info = [inner_key, 2]
+                                error_info = [inner_key, self.WRONG_TYPE]
                                 break
 
                 if not error_info[0] == None:
@@ -437,7 +447,7 @@ class ChemicalSchema():
        
         return error_info
 
-    def build_record(self, lots_collection=None, chemical_id=ObjectId(), req_method=""):
+    def build_chem_record(self, lots_collection=None, chemical_id=ObjectId(), req_method=""):
             # Build dictionary object to add new record using correct field names.
             # lots_collection is type pymongo.collection.Collection
             record = {}
@@ -490,7 +500,8 @@ class LotSchema(ChemicalSchema):
         ChemicalSchema.NAME_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.NAME_KEY],
         INTERNAL_LOT_KEY: str,
         ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.AMT_KEY],    # Calculations with amounts must be performed with Decimal()
-        ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.UNIT_KEY]
+        ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.UNIT_KEY],
+        EXPIRY_KEY: str
         }
     
     LOT_SCHEMA = {
@@ -516,11 +527,15 @@ class LotSchema(ChemicalSchema):
     }
 
     def __init__(self, data, chemicals_collection):
-        self._chem_id_valid = bool
         self._lot_request_data = data
 
-        # Pop chemical_id to strip _lot_request_data for validation and build.
+        # Used to short-circuit validation if chemical not found
+        self._chem_id_error = []
+
+        # Pop _id and chemical_id to strip _lot_request_data for validation and build.
         self._chemical_id = self._lot_request_data.pop(self.CHEMICAL_ID)
+        if self.ID_KEY in self._lot_request_data:
+            self.__req_id = self._lot_request_data.pop(self.ID_KEY)
 
         # Check for/return related data from chemical form (already cleaned on arrival)
         super().__init__(
@@ -536,98 +551,126 @@ class LotSchema(ChemicalSchema):
         )
 
         if not chem_data:
-            self._chem_id_error = ["chemical_id", 5]
+            self._chem_id_error = ["chemical_id", self.CHEM_NOT_FOUND]
         
         return chem_data
 
     def validate_lot_form(self):
-        # Check value for "Source" from pulled chemical data and validate lot fields based on that (means I only eval a 1- or 2-level dict)
-        #
-        # The data: * types
-        #           * existence of all keys in schema
-        #           * No extra keys
-        #           * Date keys are either empty string or date of specified format
-        #             * Convert date to utc by calling a method that does so
-        #             * Can I handle daylight savings time? I would just need to store whether or not it's DST and only apply that to time difference calculations
-        #           * Ensure prepared lots have >= 1 component (can check self.SOURCE_KEY to determine if purchased or prepared)
-        #
-        #
-        ########I need to make an instance parameter that flags whether the chemical _id was found.
-        # Check that flag at the top of this method, and if it's bad just return the answer right away (skip other blocks)
-        
-        # Check for missing/extra keys
-        # This wouldn't catch it if one component had two of a valid field while another was missing that valid field
-        # or any permutation of the same case (valid number of valid fields in an invalid combination on each component)
-        # This case is handled when component value types are validated (presence of required fields is ensured) and
-        # when the document is built (it is only built from the validated field names in the schema)
-        error_info = self._chem_id_valid
+        # Internal lot number validation would be added when there's a reliable system to generate internal lot numbers
+        error_info = self._chem_id_error
+
+        # Check for extra keys
         if error_info[0] == None:
-            request_keys = ChemicalSchema.get_schema_dict_keys(
+            request_keys = ChemicalSchema.get_schema_keys(
                 self._lot_request_data
             )
 
-            if self.SOURCE_KEY == "Purchased":
-                schema_keys = ChemicalSchema.get_schema_dict_keys(
+            if self._chem_data[self.SOURCE_KEY] == self.PURCH_FIELD_KEY:
+                schema_keys = ChemicalSchema.get_schema_keys(
                     self.LOT_SCHEMA[self.PURCH_FIELD_KEY]
                 )
             else:
-                schema_keys = ChemicalSchema.get_schema_dict_keys(
+                schema_keys = ChemicalSchema.get_schema_keys(
                     self.LOT_SCHEMA[self.PREP_FIELD_KEY]
                 )
-                if not schema_keys[1] == 1:
+                if schema_keys[1] == 0:
+                    error_info = ["", self.MISSING_COMP]
+                elif not schema_keys[1] == 1:
                     # Add the correct number of duplicates for component keys from schema
                     for i in range(2, (schema_keys[1] + 1)):
                         for key in self.LOT_SCHEMA[self.PREP_FIELD_KEY]:
                             schema_keys[0].append(key)
             
-            # Can safely discard the number of components in the request
+            # Keep only the list of keys
             schema_keys = schema_keys[0]
             request_keys = request_keys[0]
 
             extra_keys = list(request_keys - schema_keys)
 
             if extra_keys:
-                error_info = [extra_keys, 4]
+                if error_info[0] == None:
+                    # Don't override error if components are missing.
+                    error_info = [extra_keys, self.UNEXP_FIELD]
         
-        # Check types
-        ##########when returning, add check for error type 3 "doesn't exist in validated list"
-        ###Don't forget to add breaks (and take breaks, too)
+        # Check presence of keys, types of data, and whether list data are valid.
         if error_info[0] == None:
-            if self.SOURCE_KEY == "Purchased":
-                for key in self.CHEMICAL_SCHEMA:
-                    if not type(self._lot_request_data[key]) == self.CHEMICAL_SCHEMA[key]:
-                        error_info = [key, 2]
+            if self.SOURCE_KEY == self.PURCH_FIELD_KEY:
+                for key in self.LOT_SCHEMA:
+                    if not type(self._lot_request_data[key]) == self.LOT_SCHEMA[key]:
+                        error_info = [key, self.WRONG_TYPE]
+                        break
+                    elif key in [self.OPEN_KEY, self.EXPIRY_KEY, self.EMPTY_KEY]:
+                        try:
+                            dt = datetime.fromisoformat(self._lot_request_data[key])
+                        except ValueError:
+                            error_info = [key, self.WRONG_DATE_FORMAT]
+                            break
             else:
-                for key in self.CHEMICAL_SCHEMA:
-                    if isinstance(self.CHEMICAL_SCHEMA[key], list):
+                for key in self.LOT_SCHEMA:
+                    if isinstance(self.LOT_SCHEMA[key], list):
                         # "Components" and "Amount" both have embedded lists as values
-                        if isinstance(self.CHEMICAL_SCHEMA[key][0], dict):
+                        if key == self.COMPONENTS_KEY:
                             # Loop through components and validate each
 
-                            for element in self.CHEMICAL_SCHEMA[key]:
-                                # Component value type check
-                                # Also verify component field presence to catch misses from the validation above
-                                prep_inner_dict = self.CHEMICAL_SCHEMA[key][element]
-                                req_inner_dict = self._lot_request_data[key][element]
+                            for component in self._lot_request_data[key]:
+                                prep_comp_dict = self.COMPONENT_SCHEMA
+                                req_comp_dict = self._lot_request_data[key][component]
                                 
-                                for subkey in prep_inner_dict:
-                                    if isinstance(prep_inner_dict[subkey], list):
-                                        if not subkey in req_inner_dict:
-                                            error_info = [f"{key}.Component #{element + 1}.{subkey}", 1]
-                                        elif not type(req_inner_dict[subkey] in prep_inner_dict[subkey]):
-                                            error_info = [f"{key}.{req_inner_dict[self.NAME_KEY]}.{subkey}", 2]
+                                for subkey in prep_comp_dict:
+                                    if isinstance(prep_comp_dict[subkey], list):   # "Amount" field
+                                        if not subkey in req_comp_dict:
+                                            error_info = [f"{key}.Component #{component + 1}.{subkey}", self.MISS_REQ_FIELD]
+                                            break
+                                        elif not type(req_comp_dict[subkey]) in prep_comp_dict[subkey]:
+                                            error_info = [f"{key}.{req_comp_dict[self.NAME_KEY]}.{subkey}", self.WRONG_TYPE]
+                                            break
                                     else:
-                                        if not subkey in req_inner_dict:
-                                            error_info = [f"{key}.Component #{element + 1}.{subkey}", 1]
-                                        elif not type(req_inner_dict[subkey] == prep_inner_dict[subkey]):
-                                            error_info = [f"{key}.{req_inner_dict[self.NAME_KEY]}.{subkey}", 2]
+                                        if not subkey in req_comp_dict:
+                                            error_info = [f"{key}.Component #{component + 1}.{subkey}", self.MISS_REQ_FIELD]
+                                            break
+                                        elif not type(req_comp_dict[subkey]) == prep_comp_dict[subkey]:
+                                            error_info = [f"{key}.{req_comp_dict[self.NAME_KEY]}.{subkey}", self.WRONG_TYPE]
+                                            break
+                                        elif key in [self.PREP_DATE_KEY, self.EXPIRY_KEY, self.EMPTY_KEY]:
+                                            try:
+                                                dt = datetime.fromisoformat(self._lot_request_data[key])
+                                            except ValueError:
+                                                error_info = [key, self.WRONG_DATE_FORMAT]
+                                                break
+                                        elif subkey == self.UNIT_KEY:
+                                            if not req_comp_dict[subkey] in field_lists.units:
+                                                error_info = [subkey, self.INVAL_LIST_ENTRY]
+                                                break
+                                    
+                                if not error_info[0] == None:
+                                    # This is in the event that inner loops found invalid data
+                                    break
 
                         else:
-                            if not type(self._lot_request_data[key]) in self.CHEMICAL_SCHEMA[key]:
-                               error_info = [key, 2]
+                            if not key in self._lot_request_data:
+                                error_info = [key, self.MISS_REQ_FIELD]
+                            elif not type(self._lot_request_data[key]) in self.LOT_SCHEMA[key]:
+                               error_info = [key, self.WRONG_TYPE]
+                               break
+                    elif key in [self.PREP_DATE_KEY, self.EXPIRY_KEY, self.EMPTY_KEY]:
+                        try:
+                            dt = datetime.fromisoformat(self._lot_request_data[key])
+                        except ValueError:
+                            error_info = [key, self.WRONG_DATE_FORMAT]
+                            break
                     else:
-                        if not type(self._lot_request_data[key]) == self.CHEMICAL_SCHEMA[key]:
-                            error_info = [key, 2]
+                        if not type(self._lot_request_data[key]) == self.LOT_SCHEMA[key]:
+                            error_info = [key, self.WRONG_TYPE]
+                            break
+                    
+                    if not error_info[0] == None:
+                        # This is in the event that inner loops found invalid data
+                        break
+                
+        return error_info
+    
+    def build_lot_record(self):
+        pass
 
 
 
@@ -654,7 +697,7 @@ def manage_chemicals():
 
             match form_val[1]:
                 case 0:
-                    record = new_chemical.build_record()
+                    record = new_chemical.build_chem_record()
                     result = app.chemicals.insert_one(record)
                     response = jsonify({"inserted_id": str(result.inserted_id)}), 201
                 case 1:
@@ -702,7 +745,9 @@ def manage_chemical(chemical_id):
             match form_val[1]:
                 case 0:
                     try:
-                        record = updated_chemical.build_record(app.lots, chemical_id, request.method)
+                        record = updated_chemical.build_chem_record(
+                            app.lots, chemical_id, request.method
+                            )
 
                         result = app.chemicals.update_one(
                             {"_id": ObjectId(chemical_id)},
