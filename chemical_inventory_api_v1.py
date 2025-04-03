@@ -347,7 +347,7 @@ class ChemicalSchema(ValidationErrorCodes):
                     self.CHEMICAL_SCHEMA[self.PREP_FIELD_KEY]
                     )
                 irrelevant_keys.append(self.PREP_FIELD_KEY)
-            else:
+            elif self._chem_request_data[self.SOURCE_KEY] == "Prepared":
                 irrelevant_keys = ChemicalSchema.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PURCH_FIELD_KEY]
                     )
@@ -448,7 +448,7 @@ class ChemicalSchema(ValidationErrorCodes):
         return error_info
 
     def build_chem_record(self, lots_collection=None, chemical_id=ObjectId(), req_method=""):
-            # Build dictionary object to add new record using correct field names.
+            # Build dictionary object to add new record using mandatory schema.
             # lots_collection is type pymongo.collection.Collection
             record = {}
 
@@ -486,7 +486,7 @@ class ChemicalSchema(ValidationErrorCodes):
 
 class LotSchema(ChemicalSchema):
     # Add this to documentation, but requests should be of the form of one of the two VALUES in the LOT_SCHEMA dictionary (plus chemical_id).
-    CHEMICAL_ID = "chemical_id"
+    CHEM_ID_KEY = "chemical_id"
     MANU_LOT_KEY = "Manufacturer Lot/Batch Number"
     INTERNAL_LOT_KEY = "Internal Lot Number"
     OPEN_KEY = "Open Date"
@@ -533,7 +533,7 @@ class LotSchema(ChemicalSchema):
         self._chem_id_error = []
 
         # Pop _id and chemical_id to strip _lot_request_data for validation and build.
-        self._chemical_id = self._lot_request_data.pop(self.CHEMICAL_ID)
+        self._chemical_id = self._lot_request_data.pop(self.CHEM_ID_KEY)
         if self.ID_KEY in self._lot_request_data:
             self.__req_id = self._lot_request_data.pop(self.ID_KEY)
 
@@ -594,7 +594,7 @@ class LotSchema(ChemicalSchema):
         
         # Check presence of keys, types of data, and whether list data are valid.
         if error_info[0] == None:
-            if self.SOURCE_KEY == self.PURCH_FIELD_KEY:
+            if self.SOURCE_KEY == "Purchased":
                 for key in self.LOT_SCHEMA:
                     if not type(self._lot_request_data[key]) == self.LOT_SCHEMA[key]:
                         error_info = [key, self.WRONG_TYPE]
@@ -605,7 +605,7 @@ class LotSchema(ChemicalSchema):
                         except ValueError:
                             error_info = [key, self.WRONG_DATE_FORMAT]
                             break
-            else:
+            elif self.SOURCE_KEY == "Prepared":
                 for key in self.LOT_SCHEMA:
                     if isinstance(self.LOT_SCHEMA[key], list):
                         # "Components" and "Amount" both have embedded lists as values
@@ -671,6 +671,60 @@ class LotSchema(ChemicalSchema):
     
     def build_lot_record(self):
         pass
+        # Build dictionary object to insert new lot document using mandatory schema
+        
+        # Add shared fields from chemical schema
+        record = self.build_chem_record(self._chem_data)
+
+        # Add lot fields in correct positions
+        record.insert(0, {self.CHEM_ID_KEY: self._chemical_id})
+
+        if self.SOURCE_KEY == "Purchased":
+            record[6].insert(2, {
+                self.MANU_LOT_KEY: self._lot_request_data[self.MANU_LOT_KEY]
+                })
+            record.insert(2, {
+                self.INTERNAL_LOT_KEY: self._lot_request_data[self.INTERNAL_LOT_KEY]
+                })
+            record.insert(8, {
+                self.OPEN_KEY: self._lot_request_data[self.OPEN_KEY]
+                })
+            record.insert(9, {
+                self.EXPIRY_KEY: self._lot_request_data[self.EXPIRY_KEY]
+                })
+            record.insert(10, {
+                self.EMPTY_KEY: self._lot_request_data[self.EMPTY_KEY]
+                })
+            
+        elif self.SOURCE_KEY == "Prepared":
+            record.insert(2, {
+                self.INTERNAL_LOT_KEY: self._lot_request_data[self.INTERNAL_LOT_KEY]
+                })
+            record.insert(3, {
+                self.AMT_KEY: self._lot_request_data[self.AMT_KEY]
+                })
+            record.insert(4, {
+                self.UNIT_KEY: self._lot_request_data[self.UNIT_KEY]
+                })
+            record.insert(5, {
+                self.CONT_TYPE_KEY: self._lot_request_data[self.CONT_TYPE_KEY]
+                })
+            record.insert(11, {
+                self.PREP_DATE_KEY: self._lot_request_data[self.PREP_DATE_KEY]
+                })
+            record.insert(12, {
+                self.EXPIRY_KEY: self._lot_request_data[self.EXPIRY_KEY]
+                })
+            record.insert(13, {
+                self.EMPTY_KEY: self._lot_request_data[self.EMPTY_KEY]
+                })
+            record[14].insert{0, {
+                self.COMPONENTS_KEY: []
+            }}
+
+            # Insert each component from the lot record request
+            for component in self._lot_request_data[self.COMPONENTS_KEY]:
+                # Build each component dictionary then add it to record[14][component]
 
 
 
