@@ -95,7 +95,10 @@ to get the chemical _id then proceed as usual (submitting a request with that _i
 Note in docs that all dates must be received as strings in ISO 8601 format and are converted to UTC, so they should be sent as local times with a timezone.
 Note i ndocs that all dates are served to front-end as UTC dates.
 
-
+I hate that this is just a project because there's so much it needs to be a real system and
+so little time to add it all just to convince people to hire me.
+* It should have validation when adding a new chemical record that they're not adding a 
+Manufacturer/PN/Amount/Unit or Method/Step Reference that already exists (duplicate name, same chemical)
     
 """
 
@@ -208,7 +211,7 @@ class ChemicalSchema(ValidationErrorCodes):
     CONT_TYPE_KEY = "Container Type"
 
     PREP_FIELD_KEY = "Prepared Fields"
-    METH_REF_KEY = "Method Reference"
+    METH_REF_KEY = "Method/Step Reference"
 
     __AVAIL_TOTAL_KEY = "Available Total"    # Added only at document creation
     __AVAIL_OPEN_KEY = "Available Open"    # Added only at document creation
@@ -233,9 +236,11 @@ class ChemicalSchema(ValidationErrorCodes):
         }
     }
 
-    def __init__(self, data):
+    def __init__(self, data, chemicals_collection, lots_collection):
         # Single underscore prevents name mangling (easier to call in child class)
         self._chem_request_data = data
+        self._chemicals_collection = chemicals_collection
+        self._lots_collection = lots_collection
         
         # These fields will be stored as parameters and removed from
         # self._chem_request_data to allow reuse of data validation for both POST and PUT.
@@ -447,7 +452,7 @@ class ChemicalSchema(ValidationErrorCodes):
        
         return error_info
 
-    def build_chem_record(self, lots_collection=None, chemical_id=ObjectId(), req_method=""):
+    def build_chem_record(self, chemical_id=ObjectId(), req_method=""):
             # Build dictionary object to add new record using mandatory schema.
             # lots_collection is type pymongo.collection.Collection
             record = {}
@@ -477,7 +482,7 @@ class ChemicalSchema(ValidationErrorCodes):
                 record[self.__AVAIL_TOTAL_KEY] = 0
                 record[self.__AVAIL_OPEN_KEY] = 0
             elif req_method.upper() == "PUT":
-                self.query_current_totals(lots_collection, chemical_id)
+                self.query_current_totals(self._lots_collection, chemical_id)
 
                 record[self.__AVAIL_TOTAL_KEY] = self.__current_avail_total
                 record[self.__AVAIL_OPEN_KEY] = self.__current_avail_open
@@ -526,20 +531,23 @@ class LotSchema(ChemicalSchema):
         }
     }
 
-    def __init__(self, data, chemicals_collection):
+    def __init__(self, data, chemicals_collection, lots_collection):
         self._lot_request_data = data
 
         # Used to short-circuit validation if chemical not found
         self._chem_id_error = []
 
         # Pop _id and chemical_id to strip _lot_request_data for validation and build.
+        # Replace this with function that also pops chemical_ids of components?
         self._chemical_id = self._lot_request_data.pop(self.CHEM_ID_KEY)
         if self.ID_KEY in self._lot_request_data:
             self.__req_id = self._lot_request_data.pop(self.ID_KEY)
 
         # Check for/return related data from chemical form (already cleaned on arrival)
         super().__init__(
-            self.query_chemical_form(self._chemical_id, chemicals_collection)
+            self.query_chemical_form(self._chemical_id, chemicals_collection),
+            chemicals_collection,
+            lots_collection
             )
         # Use self._chem_data because the name makes more sense in LotSchema context
         self._chem_data = self._chem_request_data
@@ -592,7 +600,7 @@ class LotSchema(ChemicalSchema):
                     # Don't override error if components are missing.
                     error_info = [extra_keys, self.UNEXP_FIELD]
         
-        # Check presence of keys, types of data, and whether list data are valid.
+        # All other validation
         if error_info[0] == None:
             if self.SOURCE_KEY == "Purchased":
                 for key in self.LOT_SCHEMA:
@@ -619,28 +627,38 @@ class LotSchema(ChemicalSchema):
                                 for subkey in prep_comp_dict:
                                     if isinstance(prep_comp_dict[subkey], list):   # "Amount" field
                                         if not subkey in req_comp_dict:
+                                            # Refer to component by # in case "Name" field missing. "Name" should be validated
+                                            # upstream, but this keeps it robust.
                                             error_info = [f"{key}.Component #{component + 1}.{subkey}", self.MISS_REQ_FIELD]
                                             break
                                         elif not type(req_comp_dict[subkey]) in prep_comp_dict[subkey]:
-                                            error_info = [f"{key}.{req_comp_dict[self.NAME_KEY]}.{subkey}", self.WRONG_TYPE]
+                                            error_info = [f"{key}.Component #{component + 1}.{subkey}", self.WRONG_TYPE]
                                             break
                                     else:
                                         if not subkey in req_comp_dict:
                                             error_info = [f"{key}.Component #{component + 1}.{subkey}", self.MISS_REQ_FIELD]
                                             break
                                         elif not type(req_comp_dict[subkey]) == prep_comp_dict[subkey]:
-                                            error_info = [f"{key}.{req_comp_dict[self.NAME_KEY]}.{subkey}", self.WRONG_TYPE]
+                                            error_info = [f"{key}.Component #{component + 1}.{subkey}", self.WRONG_TYPE]
                                             break
                                         elif key in [self.PREP_DATE_KEY, self.EXPIRY_KEY, self.EMPTY_KEY]:
                                             try:
                                                 dt = datetime.fromisoformat(self._lot_request_data[key])
                                             except ValueError:
-                                                error_info = [key, self.WRONG_DATE_FORMAT]
+                                                error_info = [
+                                                    f"{key}.Component #{component + 1}.{subkey}",
+                                                    self.WRONG_DATE_FORMAT
+                                                    ]
                                                 break
                                         elif subkey == self.UNIT_KEY:
                                             if not req_comp_dict[subkey] in field_lists.units:
-                                                error_info = [subkey, self.INVAL_LIST_ENTRY]
+                                                error_info = [
+                                                    f"{key}.Component #{component + 1}.{subkey}",
+                                                    self.INVAL_LIST_ENTRY
+                                                    ]
                                                 break
+                                        elif subkey == self.NAME_KEY:
+                                            # Make sure record exists in chemicals
                                     
                                 if not error_info[0] == None:
                                     # This is in the event that inner loops found invalid data
@@ -724,6 +742,9 @@ class LotSchema(ChemicalSchema):
 
             # Insert each component from the lot record request
             for component in self._lot_request_data[self.COMPONENTS_KEY]:
+                ### Don't forget to validate (above) that a component chemical exists in the database
+                # Also need to receive an ID field with components that's stripped after validation
+                # Pull from db query anything that can be rather than from request
                 # Build each component dictionary then add it to record[14][component]
 
 
