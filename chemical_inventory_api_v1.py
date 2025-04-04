@@ -46,6 +46,11 @@ in the database for the requested Method/Step Referenceto prevent duplicate logg
 chemical part in multiple templates under different names.
 * The system checks to ensure any ID key is a valid object of the type ObjectId().
 * All required fields have values
+* A real LIMS would specify in the chemicals template for prepared materials the number of components and the
+chemical_id for each, as well as specifying amounts to add and including a space to record the
+actual added amount. Creation of a prepared material would pull the chemical template, fill in
+the required information, and store it as a lot document. This is outside the scope of my
+demonstration portfolio project.
 
 General schema:
 * Chemical templates store general information on a given part number from a given manufacturer.
@@ -53,12 +58,232 @@ General schema:
 * The addition of chemical templates is highly validated to prevent bloat and disorganization from duplicate templates for the same manufacturer part number.
 * Chemical templates must be added before a lot of that chemical can be logged into the system.
 * Purchased materials must be first logged into the system before prepared materials can be logged (edge case).
+* When the app is updgraded to use the database to store validated lists: lists collection stores 
+documents containing {"Name": str}, {"list_entries": [list, of, validated, values]} (one document per list as they'll be queried as needed).
 
-Define request structure and data type for prepared and purchased chemicals and prepared and purchased lots
+
+# Define request structure and data type for prepared and purchased chemicals and prepared and purchased lots
 * Purchased chemicals:
+                                   # Only one chemical may be added per unique combination of: Manufacturer, manufacturer part number, amount, unit, container type.
+    request = {
+        "_id": str,                # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). chemicals collection primary key.
+        "Name": str,               # Required.
+        "CAS_Number": str,         # Required.
+        "Classification": str,     # Required. This value must come from the Lists() class or lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
+        "Storage_Condition": str,  # Required. This value must come from the Lists() class or lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
+        "Source": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
+        "Purchased_Fields": {      # Required.
+            "Manufacturer": str,              # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Manufacturers"} list in the database depending on whether the lists collection is in service yet.
+            "Manufacturer_Part_Number": str,  # Required for purchased materials.
+            "Amount": [int, float],           # Required for purchased materials. Either type is acceptable.
+            "Units": str,                     # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+            "Container_Type": str             # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
+        }
+    }
 * Prepared chemicals:
+    request = {
+        "_id": str,                # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). chemicals collection primary key.
+        "Name": str,               # Required.
+        "CAS_Number": str,         # Required.
+        "Classification": str,     # Required. This value must come from the Lists() class or lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
+        "Storage_Condition": str,  # Required. This value must come from the Lists() class or lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
+        "Source": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
+        "Prepared_Fields": {      # Required.
+            "Method_Step_Reference": str  # Required for prepared materials. End users must be as explicit as possible when referring to laboratory SOP method/step number as only one chemical template is allowed per method/step number.
+        }
+    }
 * Purchased lots:
+    request = {
+        "_id": str,                            # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). lots collection primary key.
+        "chemical_id": str,                    # Required. String must be convertable to a valid ObjectId(). Links to chemicals._id. Must be the "_id" of an existing chemicals collection template.
+        "Manufacturer_Lot_Batch_Number": str,  # Required.
+        "Open_Date": str,                      # Optional (use of field would be proceduralized by lab SOP). Must be a string in ISO 8601 format.
+        "Expiry_Date": str,                    # Required. Must be a string in ISO 8601 format.
+        "Empty_Date": str,                     # Optional (use of field would be proceduralized by lab SOP). Must be a string in ISO 8601 format.
+    }
 * Prepared lots:
+    request = {
+        "_id": str,               # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). lots collection primary key.
+        "chemical_id": str,       # Required. String must be convertable to a valid ObjectId(). Links to chemicals._id. Must be the "_id" of an existing chemicals collection template.
+        "Amount": [int, float],   # Required. Either type is acceptable.
+        "Units": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+        "Container_Type": str,    # Required. This value must come from the Lists() class or lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
+        "Preparation_Date": str,  # Required. Must be a string in ISO 8601 format.
+        "Expiry_Date": str,       # Required. Must be a string in ISO 8601 format.
+        "Empty_Date": str,        # Optional (use of field would be proceduralized by lab SOP). Must be a string in ISO 8601 format.
+        "Components": [           # Required. Prepared lots require >= 1 components.
+            {
+                "lot_id": str,           # Required. String must be convertable to a valid ObjectId(). Links to lots._id. Must be the "_id" of an existing lots collection lot.
+                "Amount": [int, float],  # Required. Either type is acceptable.
+                "Units": str             # Required. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+            }
+        ]
+    }
+
+# Define response structure and data type for prepared and purchased chemicals and prepared and purchased lots
+* Purchased chemicals:
+    response = {
+        "_id": str,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Purchased_Fields": {
+            "Manufacturer": str,
+            "Manufacturer_Part_Number": str,
+            "Amount": [int, float],
+            "Units": str,
+            "Container_Type": str
+        }
+    }
+* Prepared chemicals:
+    response = {
+        "_id": str,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Prepared_Fields": {
+            "Method_Step_Reference": str
+        }
+    }
+* Purchased lots:
+    response = {
+        "_id": str,
+        "chemical_id": str,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Purchased_Fields": {
+            "Manufacturer": str,
+            "Manufacturer_Part_Number": str,
+            "Manufacturer_Lot_Batch_Number": str,
+            "Amount": [int, float],
+            "Units": str,
+            "Container_Type": str
+        }
+        "Open_Date": str,
+        "Expiry_Date": str,
+        "Empty_Date": str
+    }
+* Prepared lots:
+    response = {
+        "_id": str,
+        "chemical_id": str,
+        "Name": str,
+        "CAS_Number": str,
+        "Amount": [int, float],
+        "Units": str,
+        "Container_Type": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Prepared_Fields": {
+            "Method_Step_Reference": str,
+        }
+        "Preparation_Date": str,
+        "Expiry_Date": str,
+        "Empty_Date": str,
+        "Components": [                                # List of dicts, one component per dict
+            {
+                "lot_id": str,
+                "Name": str,
+                "Manufacturer": str,
+                "Manufacturer_Part_Number": str,
+                "Manufacturer_Lot_Batch_Number": str,
+                "Amount": [int, float],                # Either is allowed. Enforced via validation methods in each schema class.
+                "Units": str,
+                "Expiry_Date": str
+            }
+        ]
+    }
+
+# Define database schema for prepared and purchased chemicals and prepared and purchased lots
+* Purchased chemicals:
+    record = {
+        "_id": ObjectId,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Purchased_Fields": {
+            "Manufacturer": str,
+            "Manufacturer_Part_Number": str,
+            "Amount": [int, float],           # Either is allowed. Enforced via validation methods in each schema class.
+            "Units": str,
+            "Container_Type": str
+        }
+    }
+* Prepared chemicals:
+    record = {
+        "_id": ObjectId,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Prepared_Fields": {
+            "Method_Step_Reference": str
+        }
+    }
+* Purchased lots:
+    record = {
+        "_id": ObjectId,
+        "chemical_id": ObjectId,
+        "Name": str,
+        "CAS_Number": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Purchased_Fields": {
+            "Manufacturer": str,
+            "Manufacturer_Part_Number": str,
+            "Manufacturer_Lot_Batch_Number": str,
+            "Amount": [int, float],                # Either is allowed. Enforced via validation methods in each schema class.
+            "Units": str,
+            "Container_Type": str
+        }
+        "Open_Date": datetime,
+        "Expiry_Date": datetime,
+        "Empty_Date": datetime
+    }
+* Prepared lots:
+    record = {
+        "_id": ObjectId,
+        "chemical_id": ObjectId,
+        "Name": str,
+        "CAS_Number": str,
+        "Amount": [int, float],                        # Either is allowed. Enforced via validation methods in each schema class.
+        "Units": str,
+        "Container_Type": str,
+        "Classification": str,
+        "Storage_Condition": str,
+        "Source": str,
+        "Prepared_Fields": {
+            "Method_Step_Reference": str
+        }
+        "Preparation_Date": datetime,
+        "Expiry_Date": datetime,
+        "Empty_Date": datetime,
+        "Components": [                                # List of dicts, one component per dict
+            {
+                "lot_id": ObjectId,
+                "Name": str,
+                "Manufacturer": str,
+                "Manufacturer_Part_Number": str,
+                "Manufacturer_Lot_Batch_Number": str,
+                "Amount": [int, float],                # Either is allowed. Enforced via validation methods in each schema class.
+                "Units": str,
+                "Expiry_Date": datetime
+            }
+        ]
+    }
+
 
 
 # Notes for documentation:
@@ -134,36 +359,52 @@ be for something I actually use and/or sell.
 
 
 # Where to pick up:
-* Re-organize error codes
+* All dates and relevant _ids are converted from str to datetime.timezone.utc or ObjectId at record construction
+    * Are they converted to strings at retrieval? (complete end points and then you'll know how best to do this.)
 * Finish lot end points
+    * I'm gonig to end up with more logic than I'd like in the end point to convert dates to strings. Just note that it's marked for a future upgrade in situ and in the app docstring.
 * Finish chemical end points (triple-check error code match-case)
 * Ensure all datetimes are received and validated as ISO 8601 strings, but returned as strings
 * Ensure that ID fields are always received as strings, converted to ObjectId() explicitly in every query, stored as ObjectId(), and returned as strings.
 * Double-check and make sure that I validate that IDs successfully convert to ObjectId() type and work
     * _id is stripped when it comes in, but it's validated both for type and existence when I run queries using try-except. Just double-check for past me.
     * PARENT_CHEM_ID should be validated when prepared lot components are validated, but double-check for past me.
-* Check for bugs again
+* Check for bugs
 * Write tests
     * Write script to load database within a test
     * I'll need to create chemicals then query them to get their _ids and do the same with lots. Flesh out tests later.
     * Test all chemical and lot methods/end points for now and call it tested
+* Depending on whether I could quikcly get script to laod database, write code to load it with lists collection
+    * No, you're not writing end points to edit the lists collection. That can be a future upgrade.
+    * You're not writing validation for the lists collection given there are no end points to interface with the lists collection.
+        * Note these things in the Lists() docstring
 * Write docstrings and clean up comments for entire program in its current state
     * For each class, note which error codes it can return for ease of use in api end points below
     * Note which fields are stripped from the request and stored in instance variables to allow reuse of validation for both POST anf PUT methods
+* Check for bugs again
 * Write README as it pertains to the app and database
 * Containerize with Docker
 * Orchestrate with Minikube
 * Update README and documentation to include containerization/Minikube
 * Add ElasticSearch integration
 * Update README to include ElasticSearch integration
+
+
+
+
+
+# Future Upgrades
+There are several opportunities to improve this code that weren't implemented while building
+the minimum viable product:
+* If a chemical template already exists, return the _id for the front end.
 """
 
 app = Flask(__name__)
 
 # Allow dependency injection from tests, otherwise create chemicals collection
 if not hasattr(app, "mongo_client"):
-    # app.mongo_client = MongoClient("mongodb-service", 27017)    # This is the client I'll use when I set it up in Docker
-    app.mongo_client = MongoClient("localhost", 27017)  # Remove this line when I begin testing in Docker containers
+    # app.mongo_client = MongoClient("mongodb-service", 27017)    # Use this client for production
+    app.mongo_client = MongoClient("localhost", 27017)  # Use this client for testing directly in WSL with MongoDB
     app.db = app.mongo_client.chemical_inventory
     app.chemicals = app.db.chemicals
     app.lots = app.db.lots
@@ -271,6 +512,7 @@ class ValidationErrorCodes():
     CHEM_DUPLICATE = 9    # Chemical already exists in database
     INVALID_ID = 10    # ID field is not a valid ObjectId()
     MISS_REQ_VALUE = 11    # Required field left blank in request
+    
 
 
 class ChemicalSchema(ValidationErrorCodes):
@@ -292,7 +534,7 @@ class ChemicalSchema(ValidationErrorCodes):
     CONT_TYPE_KEY = "Container_Type"
 
     PREP_FIELD_KEY = "Prepared_Fields"
-    METH_REF_KEY = "Method/Step_Reference"
+    METH_REF_KEY = "Method_Step_Reference"
 
     AVAIL_TOTAL_KEY = "Available_Total"    # Added only at document creation
     AVAIL_OPEN_KEY = "Available_Open"    # Added only at document creation
@@ -371,7 +613,7 @@ class ChemicalSchema(ValidationErrorCodes):
         # 
         # related_lot is ojbect of type LotSchema (to pass key names)
         
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc)
 
         current_avail_total = lots_collection.count_documents({
             "$and": [
@@ -402,6 +644,15 @@ class ChemicalSchema(ValidationErrorCodes):
             ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
             ChemicalSchema.AVAIL_OPEN_KEY: current_avail_open
         }
+    
+    @staticmethod
+    def to_datetime_utc(iso_8601_string):
+        # This function accepts a string in valid ISO 8601 format and converts it
+        # to a datetime object in the UTC time zone.
+        dt = datetime.fromisoformat(iso_8601_string)
+        utc_dt = dt.astimezone(timezone.utc)
+
+        return utc_dt
 
     def find_chemical_form(self, query, chemicals_collection=None):
         # Returns document from chemicals collection with specified _id
@@ -429,6 +680,19 @@ class ChemicalSchema(ValidationErrorCodes):
     def validate_chemical_form(self, request_method):
         """
         Don't forget to include what each error_type means in final docstring
+
+        Future update: Maybe I flatten the request body upon receipt so that 
+        I can add each field to a list for validation (req_fields, req-values, req_types, etc.)
+        and then I can easily check for one error at a time. Records would then be reconstructed
+        in the nested database schema before storage. If I were more experienced then I would've 
+        buit it that way from the start. When doing this, store the validated lists query results
+        so that each query isn't repeated once per field
+
+        Future update: add functions to check each error type for readability (e.g. def is_empty(value): return not value).
+        I kept seeing mention of "helper functions" as I built. Maybe these can be added to a class that both ChemicalSchema and LotSchema inherit from?
+
+        Fields with validated lists don't require checks for empty values because checking for the value's
+        presence in the validated list implicitly invalidates empty values.
         """
         error_info = [None, 0]  # bad_key, error_type
         
@@ -477,7 +741,7 @@ class ChemicalSchema(ValidationErrorCodes):
                     if not key in self._chem_request_data:
                         error_info = [key, self.MISS_REQ_FIELD]
                         break
-                    elif self._chem_request_data[key] == None:
+                    elif not self._chem_request_data[key]:
                         error_info = [key, self.MISS_REQ_VALUE]
                         break
                     elif not type(self._chem_request_data[key]) == self.CHEMICAL_SCHEMA[key]:
@@ -501,7 +765,7 @@ class ChemicalSchema(ValidationErrorCodes):
                         if not outer_key in self._chem_request_data:
                             error_info = [outer_key, self.MISS_REQ_FIELD]
                             break
-                        elif self._chem_request_data[outer_key] == None:
+                        elif not self._chem_request_data[outer_key]:
                             error_info = [outer_key, self.MISS_REQ_VALUE]
                             break
                         elif not type(self._chem_request_data[outer_key]) == type(self.CHEMICAL_SCHEMA[outer_key]):
@@ -516,7 +780,7 @@ class ChemicalSchema(ValidationErrorCodes):
                             if not inner_key in req_inner_dict:
                                 error_info = [inner_key, self.MISS_REQ_FIELD]
                                 break
-                            elif self._chem_request_data[inner_key] == None:
+                            elif not self._chem_request_data[inner_key]:
                                 error_info = [inner_key, self.MISS_REQ_VALUE]
                                 break
                             elif isinstance(purch_inner_dict[inner_key], list):
@@ -546,7 +810,7 @@ class ChemicalSchema(ValidationErrorCodes):
                         if not outer_key in self._chem_request_data:
                             error_info = [outer_key, self.MISS_REQ_FIELD]
                             break
-                        elif self._chem_request_data[outer_key] == None:
+                        elif not self._chem_request_data[outer_key]:
                             error_info = [outer_key, self.MISS_REQ_VALUE]
                             break
                         elif not type(self._chem_request_data[outer_key]) == type(self.CHEMICAL_SCHEMA[outer_key]):
@@ -561,7 +825,7 @@ class ChemicalSchema(ValidationErrorCodes):
                             if not inner_key in req_inner_dict:
                                 error_info = [inner_key, self.MISS_REQ_FIELD]
                                 break
-                            elif self._chem_request_data[inner_key] == None:
+                            elif not self._chem_request_data[inner_key]:
                                 error_info = [inner_key, self.MISS_REQ_VALUE]
                                 break
                             elif not type(req_inner_dict[inner_key]) == prep_inner_dict[inner_key]:
@@ -577,50 +841,54 @@ class ChemicalSchema(ValidationErrorCodes):
                     # This is in the event that inner loops found invalid data
                     break
         
-        
-        # Chemical record existence validation
-        # This comes after form validation because the form values are used in the queries.
-        if request_method.upper() == "POST":
-            # Check to ensure the requested chemical doesn't already have a template
-            req_purch_fields = self._chem_request_data[self.PURCH_FIELD_KEY]
-            req_prep_fields = self._chem_request_data[self.PREP_FIELD_KEY]
+        if error_info[0] == None:
+            # Chemical record existence validation
+            # This comes after form validation because the form values are used in the queries.
+            if request_method.upper() == "POST":
+                # Check to ensure the requested chemical doesn't already have a template
+                req_purch_fields = self._chem_request_data[self.PURCH_FIELD_KEY]
+                req_prep_fields = self._chem_request_data[self.PREP_FIELD_KEY]
 
-            chemical_exist_query = {
-                "$or": [
-                    {"$and": [
-                        # Same purchased material of any name
-                        {self.MANU_KEY: req_purch_fields[self.MANU_KEY]},
-                        {self.MANU_PN_KEY: req_purch_fields[self.MANU_KEY]},
-                        {self.AMT_KEY: req_purch_fields[self.AMT_KEY]},
-                        {self.UNIT_KEY, req_purch_fields[self.UNIT_KEY]},
-                        {self.CONT_TYPE_KEY: req_purch_fields[self.CONT_TYPE_KEY]}
-                        ]},
-                    [
-                        # Same prepared material of any name
-                        {self.METH_REF_KEY: req_prep_fields[self.METH_REF_KEY]}
+                chemical_exist_query = {
+                    "$or": [
+                        {"$and": [
+                            # Same purchased material of any name
+                            {self.MANU_KEY: req_purch_fields[self.MANU_KEY]},
+                            {self.MANU_PN_KEY: req_purch_fields[self.MANU_KEY]},
+                            {self.AMT_KEY: req_purch_fields[self.AMT_KEY]},
+                            {self.UNIT_KEY, req_purch_fields[self.UNIT_KEY]},
+                            {self.CONT_TYPE_KEY: req_purch_fields[self.CONT_TYPE_KEY]}
+                            ]},
+                        [
+                            # Same prepared material of any name
+                            {self.METH_REF_KEY: req_prep_fields[self.METH_REF_KEY]}
+                        ]
                     ]
-                ]
-            }
+                }
 
-            chem_data = self.find_chemical_form(
-                chemical_exist_query, self._chemicals_collection
-                )
+                chem_data = self.find_chemical_form(
+                    chemical_exist_query, self._chemicals_collection
+                    )
 
-            if chem_data:
-                error_info = ["", self.CHEM_DUPLICATE]
+                if chem_data:
+                    error_info = ["", self.CHEM_DUPLICATE]
 
-        elif request_method.upper() == "PUT":
-            # Check to ensure the requested chemical exists to be updated
-            chemical_exist_query = {
-                {self.CHEM_ID_KEY: ObjectId(self.__chem_req_id)}
-            }
-            
-            chem_data = self.find_chemical_form(
-                chemical_exist_query, self._chemicals_collection
-                )
-            
-            if chem_data == None:
-                error_info = ["", self.CHEM_NOT_FOUND]
+            elif request_method.upper() == "PUT":
+                # Check to ensure the requested chemical exists to be updated
+                chemical_exist_query = {
+                    {self.CHEM_ID_KEY: ObjectId(self.__chem_req_id)}
+                }
+                
+                try: 
+                    chem_data = self.find_chemical_form(
+                        chemical_exist_query, self._chemicals_collection
+                        )
+                except InvalidId:
+                    error_info = [self.CHEM_ID_KEY, self.INVALID_ID]
+                
+                if chem_data == None:
+                    # Don't overwrite error code if _id key was not valid ObjectId
+                    error_info = ["", self.CHEM_NOT_FOUND]
         
         return error_info
 
@@ -665,6 +933,7 @@ class LotSchema(ChemicalSchema):
     # Add this to documentation: requests should be of the form of one of the two VALUES in the LOT_SCHEMA dictionary (plus chemical_id).
     LOT_ID_KEY = "_id" 
     PARENT_CHEM_ID_KEY = "chemical_id"   # Linked to chemicals._id
+    COMP_LOT_KEY = "lot_id"    # Links to lots._id. Specifies the lot used in this component.
     MANU_LOT_KEY = "Manufacturer_Lot_Batch_Number"
     OPEN_KEY = "Open_Date"
     EXPIRY_KEY = "Expiry_Date"
@@ -674,7 +943,7 @@ class LotSchema(ChemicalSchema):
 
     # Per component added to prepared material.
     COMPONENT_SCHEMA = {
-        PARENT_CHEM_ID_KEY: str,
+        COMP_LOT_KEY: str,
         # ChemicalSchema.NAME_KEY added at time of lot record construction
         # ChemicalSchema.MANU_KEY added at time of lot record construction
         # ChemicalSchema.MANU_PN_KEY added at time of lot record construction
@@ -727,7 +996,8 @@ class LotSchema(ChemicalSchema):
             chem_data = self.find_chemical_form(id_exist_query, chemicals_collection)
         except InvalidId:
             self._chem_id_error = [self.PARENT_CHEM_ID_KEY, self.INVALID_ID]
-        except not chem_data:
+        
+        if not chem_data:
             # If chemical not found, error returned at beginning of validation. Construction unaffected.
             self._chem_id_error = ["chemical_id", self.CHEM_NOT_FOUND]
         
@@ -741,7 +1011,11 @@ class LotSchema(ChemicalSchema):
         self._chem_data = self._chem_request_data
 
     def validate_lot_form(self, request_method):
-        # Internal lot number validation would be added when there's a reliable system to generate internal lot numbers
+        """
+        Internal lot number validation would be added when there's a reliable system to generate internal lot numbers
+        
+        See note in validate_chemical_form for future upgrade idea.
+        """
         error_info = self._chem_id_error
 
         # Check for extra keys in request
@@ -784,7 +1058,7 @@ class LotSchema(ChemicalSchema):
                     if not key in self._lot_request_data:
                         error_info = [key, self.MISS_REQ_FIELD]
                         break
-                    elif (self._lot_request_data[key] == None) and \
+                    elif (not self._lot_request_data[key]) and \
                         (not key in [self.OPEN_KEY, self.EMPTY_KEY]):
                             error_info = [key, self.MISS_REQ_VALUE]
                             break
@@ -819,7 +1093,7 @@ class LotSchema(ChemicalSchema):
                                                 self.MISS_REQ_FIELD
                                                 ]
                                             break
-                                        elif self._lot_request_data[subkey] == None:
+                                        elif not self._lot_request_data[subkey]:
                                             error_info = [
                                                 f"{key}.Component #{component + 1}.{subkey}",
                                                 self.MISS_REQ_VALUE
@@ -838,7 +1112,7 @@ class LotSchema(ChemicalSchema):
                                                 self.MISS_REQ_FIELD
                                                 ]
                                             break
-                                        elif self._lot_request_data[subkey] == None:
+                                        elif not self._lot_request_data[subkey]:
                                             error_info = [
                                                 f"{key}.Component #{component + 1}.{subkey}",
                                                 self.MISS_REQ_VALUE
@@ -857,12 +1131,12 @@ class LotSchema(ChemicalSchema):
                                                     self.INVAL_LIST_ENTRY
                                                     ]
                                                 break
-                                        elif subkey == self.PARENT_CHEM_ID_KEY:
+                                        elif subkey == self.COMP_LOT_KEY:
                                             # Validate that requested component chemical has an existing lot record
                                             # available for use. These would be stored for later use when building lot
                                             # records, but any number of components could be added to a lot record request. Future upgrade?
                                             lot_exist_query = {
-                                                {self.PARENT_CHEM_ID_KEY: ObjectId(self._lot_request_data[key][component][self.PARENT_CHEM_ID_KEY])}
+                                                {self.LOT_ID_KEY: ObjectId(self._lot_request_data[key][component][self.COMP_LOT_KEY])}
                                                 }
                                             
                                             # Validate component's parent_chemical_id is a valid ObjectId() type
@@ -874,13 +1148,14 @@ class LotSchema(ChemicalSchema):
                                                     self.INVALID_ID
                                                 ]
 
-                                            if not lot_data:
-                                                # Trigger error if no lot exists for requested component
-                                                error_info = [
-                                                    f"{key}.Component #{component + 1}.{subkey}",
-                                                    self.LOT_NOT_FOUND
-                                                    ]
-                                                break
+                                            if error_info[0] == None:
+                                                if not lot_data:
+                                                    # Trigger error if no lot exists for requested component
+                                                    error_info = [
+                                                        f"{key}.Component #{component + 1}.{subkey}",
+                                                        self.LOT_NOT_FOUND
+                                                        ]
+                                                    break
                                     
                                 if not error_info[0] == None:
                                     # This is in the event that inner loops found invalid data
@@ -890,7 +1165,7 @@ class LotSchema(ChemicalSchema):
                             if not key in self._lot_request_data:
                                 error_info = [key, self.MISS_REQ_FIELD]
                                 break
-                            elif self._lot_request_data[key] == None:
+                            elif not self._lot_request_data[key]:
                                 error_info = [key, self.MISS_REQ_VALUE]
                                 break
                             elif not type(self._lot_request_data[key]) in self.LOT_SCHEMA[key]:
@@ -899,7 +1174,7 @@ class LotSchema(ChemicalSchema):
                     elif not key in self._lot_request_data:
                         error_info = [key, self.MISS_REQ_FIELD]
                         break
-                    elif (self._lot_request_data[key] == None) and \
+                    elif (not self._lot_request_data[key]) and \
                         (not key in [self.EMPTY_KEY]):
                             error_info = [key, self.MISS_REQ_VALUE]
                             break
@@ -917,22 +1192,23 @@ class LotSchema(ChemicalSchema):
                     if not error_info[0] == None:
                         # This is in the event that inner loops found invalid data
                         break
+
+        if error_info[0] == None:        
+            if request_method.upper() == "PUT":
+                # Check to ensure the requested lot exists to be updated
+                lot_exist_query = {
+                    {self.LOT_ID_KEY: ObjectId(self.__lot_req_id)}
+                }
                 
-        if request_method.upper() == "PUT":
-            # Check to ensure the requested lot exists to be updated
-            lot_exist_query = {
-                {self.LOT_ID_KEY: ObjectId(self.__lot_req_id)}
-            }
-            
-            try:
-                lot_data = self.find_lot_form(
-                lot_exist_query, self._lots_collection
-                )
-            except InvalidId:
-                error_info = [self.LOT_ID_KEY, self.INVALID_ID]
-            
-            if lot_data == None:
-                error_info = ["", self.LOT_NOT_FOUND]
+                try:
+                    lot_data = self.find_lot_form(
+                    lot_exist_query, self._lots_collection
+                    )
+                except InvalidId:
+                    error_info = [self.LOT_ID_KEY, self.INVALID_ID]
+                
+                if lot_data == None:
+                    error_info = ["", self.LOT_NOT_FOUND]
 
         return error_info
     
@@ -942,26 +1218,31 @@ class LotSchema(ChemicalSchema):
         # Add shared fields from chemical schema
         record = self.build_chem_record(self._chem_data)
 
-        # Add lot fields in correct positions
+        # Add parent chemical document _id and set type
         record.insert(0, {
-            self.PARENT_CHEM_ID_KEY: self._lot_request_data[self.PARENT_CHEM_ID_KEY]
+            self.PARENT_CHEM_ID_KEY: ObjectId(
+                self._lot_request_data[self.PARENT_CHEM_ID_KEY]
+                )
             })
-
-        ##### Need to unmess lot document order now that INTERNAL_LOT_KEY is no longer 
-        #### a thing
 
         if self.SOURCE_KEY == "Purchased":
             record[6].insert(2, {
                 self.MANU_LOT_KEY: self._lot_request_data[self.MANU_LOT_KEY]
                 })
             record.insert(7, {
-                self.OPEN_KEY: self._lot_request_data[self.OPEN_KEY]
+                self.OPEN_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.OPEN_KEY]
+                )
                 })
             record.insert(8, {
-                self.EXPIRY_KEY: self._lot_request_data[self.EXPIRY_KEY]
+                self.EXPIRY_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.EXPIRY_KEY]
+                )
                 })
             record.insert(9, {
-                self.EMPTY_KEY: self._lot_request_data[self.EMPTY_KEY]
+                self.EMPTY_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.EMPTY_KEY]
+                )
                 })
             
         elif self.SOURCE_KEY == "Prepared":
@@ -975,40 +1256,49 @@ class LotSchema(ChemicalSchema):
                 self.CONT_TYPE_KEY: self._lot_request_data[self.CONT_TYPE_KEY]
                 })
             record.insert(10, {
-                self.PREP_DATE_KEY: self._lot_request_data[self.PREP_DATE_KEY]
+                self.PREP_DATE_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.PREP_DATE_KEY]
+                )
                 })
             record.insert(11, {
-                self.EXPIRY_KEY: self._lot_request_data[self.EXPIRY_KEY]
+                self.EXPIRY_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.EXPIRY_KEY]
+                )
                 })
             record.insert(12, {
-                self.EMPTY_KEY: self._lot_request_data[self.EMPTY_KEY]
+                self.EMPTY_KEY: ChemicalSchema.to_datetime_utc(
+                    self._lot_request_data[self.EMPTY_KEY]
+                )
                 })
             record[14].insert(0, {
                 self.COMPONENTS_KEY: []
                 })
 
-            # Insert each component (must be an existing lot) from the lot record request
+            # Insert each component from the lot record request
             # Lot record info shared with parent chemical is pulled from chemical database
             # where applicable to prevent entry errors
             for component in self._lot_request_data[self.COMPONENTS_KEY]:
                 added_component = self._lot_request_data[self.COMPONENTS_KEY][component]
                 component_attrs = {}
                 component_lot_query = {
-                    {self.PARENT_CHEM_ID_KEY: ObjectId(added_component[self.PARENT_CHEM_ID_KEY])}
+                    {self.COMP_LOT_KEY: ObjectId(added_component[self.COMP_LOT_KEY])}
                 }
 
                 comp_lot_rec = self.find_lot_form(component_lot_query)
                 comp_lot_rec_purch = comp_lot_rec[self.PURCH_FIELD_KEY]
 
-                component_attrs[self.PARENT_CHEM_ID_KEY] = added_component[self.PARENT_CHEM_ID_KEY]
-                component_attrs[self.CHEM_ID_KEY] = added_component[self.CHEM_ID_KEY]
+                component_attrs[self.COMP_LOT_KEY] = ObjectId(
+                    added_component[self.COMP_LOT_KEY]
+                    )
                 component_attrs[self.NAME_KEY] = comp_lot_rec[self.NAME_KEY]
                 component_attrs[self.MANU_KEY] = comp_lot_rec_purch[self.MANU_KEY]
                 component_attrs[self.MANU_PN_KEY] = comp_lot_rec_purch[self.MANU_PN_KEY]
                 component_attrs[self.MANU_LOT_KEY] = comp_lot_rec_purch[self.MANU_LOT_KEY]
                 component_attrs[self.AMT_KEY] = added_component[self.AMT_KEY]
                 component_attrs[self.UNIT_KEY] = added_component[self.UNIT_KEY]
-                component_attrs[self.EXPIRY_KEY] = comp_lot_rec[self.EXPIRY_KEY]
+                component_attrs[self.EXPIRY_KEY] = ChemicalSchema.to_datetime_utc(
+                    comp_lot_rec[self.EXPIRY_KEY]
+                )
                 
                 
                 record[14][component].insert(component_attrs)
