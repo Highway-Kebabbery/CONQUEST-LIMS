@@ -18,10 +18,16 @@ def app():
     })
 
     flask_app.mongo_client = mongomock.MongoClient()
-    flask_app.db = flask_app.mongo_client.chemical_inventory
+    flask_app.db = flask_app.mongo_client.conquest_lims
     flask_app.chemicals = flask_app.db.chemicals
-
-    yield flask_app
+    flask_app.lots = flask_app.db.lots
+    flask_app.lists = flask_app.db.lists
+    
+    with flask_app.mongo_client as client:
+        # Not technically necessary since mongomock is in-memory, but left as reminder
+        # when I check back that it's important to use something like `with` to clean
+        # up connections after testing. This is a learning project for me.
+        yield flask_app
 
 @pytest.fixture()
 def client(app):
