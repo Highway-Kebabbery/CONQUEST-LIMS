@@ -1,50 +1,52 @@
+from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema
+
 # Validated lists
-classifications = {"Name": "Classifications", "List_entries": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder"]}
-container_types = {"Name": "Container_types", "List_entries": ["Ampoule", "Autosampler vial", "Bottle", "Vial"]}
-manufacturers = {"Name": "Manufacturers", "List_entries": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
-sources = {"Name": "Sources", "List_entries": ["Purchased", "Prepared"]}
-storage_conditions = {"Name": "Storage_conditions", "List_entries": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
-units = {"Name": "Units", "List_entries": ["g", "kg", "L", "mL", "µL"]}
+classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder"]}
+container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial"]}
+manufacturers = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.MANU_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
+sources = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.SOURCES_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Purchased", "Prepared"]}
+storage_conditions = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.STOR_COND_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
+units = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.UNITS_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["g", "kg", "L", "mL", "µL"]}
 
 # Define valid chemicals
 valid_purchased_chemical_1 = {
-    "Name": "Methanol (Certified ACS), Fisher Chemical",
-    "CAS_Number": "67-56-1",
-    "Classification": "Flammable Solvent",
-    "Source": "Purchased"
-    "Purchased_Fields": {
-        "Manufacturer": "Fisher Scientific",
-        "Manufacturer_Part_Number": "A412-4",
-        "Amount": 4,
-        "Units": "L",
-        "Container_Type": "Bottle"
+    ChemicalSchema.NAME_KEY: "Methanol (Certified ACS), Fisher Chemical",
+    ChemicalSchema.CAS_KEY: "67-56-1",
+    ChemicalSchema.CLASSIF_KEY: "Flammable Solvent",
+    ChemicalSchema.SOURCE_KEY: "Purchased",
+    ChemicalSchema.PURCH_FIELD_KEY: {
+        ChemicalSchema.MANU_KEY: "Fisher Scientific",
+        ChemicalSchema.MANU_PN_KEY: "A412-4",
+        ChemicalSchema.AMT_KEY: 4,
+        ChemicalSchema.UNIT_KEY: "L",
+        ChemicalSchema.CONT_TYPE_KEY: "Bottle"
     }
 }
 
 valid_purchased_chemical_2 = {
-    "Name": "Water, Optima LC/MS Grade, Fisher Chemical",
-    "CAS_Number": "7732-18-5",
-    "Classification": "Water",
-    "Source": "Purchased",
-    "Purchased_Fields": {
-        "Manufacturer": "Fisher Scientific",
-        "Manufacturer_Part_Number": "W64",
-        "Amount": 4,
-        "Units": "L",
-        "Container_Type": "Bottle"
+    ChemicalSchema.NAME_KEY: "Water, Optima LC/MS Grade, Fisher Chemical",
+    ChemicalSchema.CAS_KEY: "7732-18-5",
+    ChemicalSchema.CLASSIF_KEY: "Water",
+    ChemicalSchema.SOURCE_KEY: "Purchased",
+    ChemicalSchema.PURCH_FIELD_KEY: {
+        ChemicalSchema.MANU_KEY: "Fisher Scientific",
+        ChemicalSchema.MANU_PN_KEY: "W64",
+        ChemicalSchema.AMT_KEY: 4,
+        ChemicalSchema.UNIT_KEY: "L",
+        ChemicalSchema.CONT_TYPE_KEY: "Bottle"
     }
 }
 
 
 # Prepared chemical using only purchased components
 valid_prepared_chemical_1 = {
-    "Name": "Methanol, 40% in Water",
-    "CAS_Number": "67-56-1, 7732-18-5",
-    "Classification": "Mobile phase",
-    "Storage_Condition": "Ambient",
-    "Source": "Prepared",
-    "Prepared_Fields": {
-        "Method_Step_Reference": "SOP-00123.4.3.i"
+    ChemicalSchema.NAME_KEY: "Methanol, 40% in Water",
+    ChemicalSchema.CAS_KEY: "67-56-1, 7732-18-5",
+    ChemicalSchema.CLASSIF_KEY: "Mobile phase",
+    ChemicalSchema.STORAGE_KEY: "Ambient",
+    ChemicalSchema.SOURCE_KEY: "Prepared",
+    ChemicalSchema.PREP_FIELD_KEY: {
+        ChemicalSchema.METH_REF_KEY: "SOP-00123.4.3.i"
         }
 }
 
@@ -56,6 +58,8 @@ empty_request_body = {}
 
 #_____________________________________________________________________________
 # Permutations of valid HHTP requests with invalid data schema
+# Magic numbers, types, and string literals in this section are chosen
+# specifically to break schema validation without being invalid HTTP requests
 
 
 # Don't test EVERY permutation, but at least give one test with two errors per chemical
@@ -64,36 +68,70 @@ empty_request_body = {}
 # valid_purchased_chemical_1
 # Name
 val_purch_1_name_miss_field = valid_purchased_chemical_1
-del val_purch_1_name_miss_field["Name"]
+del val_purch_1_name_miss_field[ChemicalSchema.NAME_KEY]
 
 val_purch_1_name_miss_value = valid_purchased_chemical_1
-val_purch_1_name_miss_field["Name"] = None
+val_purch_1_name_miss_field[ChemicalSchema.NAME_KEY] = None
 
 val_purch_1_name_type = valid_purchased_chemical_1
-val_purch_1_name_miss_field["Name"] = 1
+val_purch_1_name_miss_field[ChemicalSchema.NAME_KEY] = 1
 
 # CAS_Number
 val_purch_1_cas_miss_field = valid_purchased_chemical_1
-del val_purch_1_name_miss_field["CAS_Number"]
+del val_purch_1_name_miss_field[ChemicalSchema.CAS_KEY]
 
 val_purch_1_cas_miss_value = valid_purchased_chemical_1
-val_purch_1_name_miss_field["CAS_Number"] = None
+val_purch_1_name_miss_field[ChemicalSchema.CAS_KEY] = None
 
 val_purch_1_cas_type = valid_purchased_chemical_1
-val_purch_1_name_miss_field["CAS_Number"] = 1
+val_purch_1_name_miss_field[ChemicalSchema.CAS_KEY] = 1
 
 # Classification
 val_purch_1_classif_miss_field = valid_purchased_chemical_1
-del val_purch_1_name_miss_field["Classification"]
+del val_purch_1_name_miss_field[ChemicalSchema.CLASSIF_KEY]
 
 val_purch_1_classif_miss_value = valid_purchased_chemical_1
-val_purch_1_name_miss_field["Classification"] = None
+val_purch_1_name_miss_field[ChemicalSchema.CLASSIF_KEY] = None
 
 val_purch_1_classif_type = valid_purchased_chemical_1
-val_purch_1_name_miss_field["Classification"] = 1
+val_purch_1_name_miss_field[ChemicalSchema.CLASSIF_KEY] = 1
 
 val_purch_1_classif_inval_list_entry = valid_purchased_chemical_1
-val_purch_1_name_miss_field["Classification"] = "Value of valid type but not in list"
+val_purch_1_name_miss_field[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
+
+# Source
+val_purch_1_source_miss_field = valid_purchased_chemical_1
+del val_purch_1_name_miss_field[ChemicalSchema.SOURCE_KEY]
+
+val_purch_1_source_miss_value = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.SOURCE_KEY] = None
+
+val_purch_1_source_type = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.SOURCE_KEY] = 1
+
+val_purch_1_source_inval_list_entry = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
+
+# Purchased_Fields
+val_purch_1_purch_fields_miss_field = valid_purchased_chemical_1
+del val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY]
+
+val_purch_1_purch_fields_miss_value = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY] = None
+
+val_purch_1_purch_fields_type = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY] = 1
+
+# Manufacturer
+val_purch_1_manu_miss_field = valid_purchased_chemical_1
+del val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY]
+
+val_purch_1_manu_miss_value = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = None
+
+val_purch_1_manu_type = valid_purchased_chemical_1
+val_purch_1_name_miss_field[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = 1
+
 
 # Templates not yet written for error codes 4, 5, or 9. 
 
@@ -101,13 +139,15 @@ val_purch_1_name_miss_field["Classification"] = "Value of valid type but not in 
 
 
 def test_add_chemicals(client):
+    chemicals_address = "/chemicals"
+
     # POST valid lists and confirm success
-    post_list_response_1 = client.post("/chemicals", json=classifications)
-    post_list_response_2 = client.post("/chemicals", json=container_types)
-    post_list_response_3 = client.post("/chemicals", json=manufacturers)
-    post_list_response_4 = client.post("/chemicals", json=sources)
-    post_list_response_5 = client.post("/chemicals", json=storage_conditions)
-    post_list_response_6 = client.post("/chemicals", json=units)
+    post_list_response_1 = client.post(chemicals_address, json=classifications)
+    post_list_response_2 = client.post(chemicals_address, json=container_types)
+    post_list_response_3 = client.post(chemicals_address, json=manufacturers)
+    post_list_response_4 = client.post(chemicals_address, json=sources)
+    post_list_response_5 = client.post(chemicals_address, json=storage_conditions)
+    post_list_response_6 = client.post(chemicals_address, json=units)
 
     assert post_list_response_1.status_code == 201
     assert post_list_response_2.status_code == 201
@@ -120,10 +160,10 @@ def test_add_chemicals(client):
 
 
     # POST valid chemicals of all types and confirm success
-    post_chem_response_1 = client.post("/chemicals", json=valid_purchased_chemical_1)
-    post_chem_response_2 = client.post("/chemicals", json=valid_purchased_chemical_2)
-    post_chem_response_3 = client.post("/chemicals", json=valid_prepared_chemical_1)
-    #post_chem_response_4 = client.post("/chemicals", json=valid_prepared_chemical_2)
+    post_chem_response_1 = client.post(chemicals_address, json=valid_purchased_chemical_1)
+    post_chem_response_2 = client.post(chemicals_address, json=valid_purchased_chemical_2)
+    post_chem_response_3 = client.post(chemicals_address, json=valid_prepared_chemical_1)
+    #post_chem_response_4 = client.post(chemicals_address, json=valid_prepared_chemical_2)
 
     assert post_chem_response_1.status_code == 201
     assert post_chem_response_2.status_code == 201
@@ -134,7 +174,7 @@ def test_add_chemicals(client):
 
 
     # Confirm POST requests with empty body return 400
-    empty_body_reponse = client.post("/chemicals", json=empty_request_body)
+    empty_body_reponse = client.post(chemicals_address, json=empty_request_body)
 
     assert empty_body_reponse.status_code == 400
 
