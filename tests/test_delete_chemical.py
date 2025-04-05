@@ -93,10 +93,10 @@ def test_delete_chemical(client):
 
 
     # Remove chemicals and confirm success
-    delete_reponse_1 = client.delete(chemicals_address + {purchased_chem_id_1})
-    delete_reponse_2 = client.delete(chemicals_address + {purchased_chem_id_2})
-    delete_reponse_3 = client.delete(chemicals_address + {prepared_chem_id_1})
-    #delete_reponse_4 = client.delete(chemicals_address + {prepared_chem_id_2})
+    delete_reponse_1 = client.delete(chemicals_address + "/" + {purchased_chem_id_1})
+    delete_reponse_2 = client.delete(chemicals_address + "/" + {purchased_chem_id_2})
+    delete_reponse_3 = client.delete(chemicals_address + "/" + {prepared_chem_id_1})
+    #delete_reponse_4 = client.delete(chemicals_address + "/" + {prepared_chem_id_2})
 
     assert delete_reponse_1.status_code == 204
     assert delete_reponse_2.status_code == 204
@@ -107,10 +107,10 @@ def test_delete_chemical(client):
 
 
     # Confirm DELETE requests for missing chemicals return 404
-    delete_reponse_1 = client.delete(chemicals_address + {purchased_chem_id_1})
-    delete_reponse_2 = client.delete(chemicals_address + {purchased_chem_id_2})
-    delete_reponse_3 = client.delete(chemicals_address + {prepared_chem_id_1})
-    #delete_reponse_4 = client.delete(chemicals_address + {prepared_chem_id_2})
+    delete_reponse_1 = client.delete(chemicals_address + "/" + {purchased_chem_id_1})
+    delete_reponse_2 = client.delete(chemicals_address + "/" + {purchased_chem_id_2})
+    delete_reponse_3 = client.delete(chemicals_address + "/" + {prepared_chem_id_1})
+    #delete_reponse_4 = client.delete(chemicals_address + "/" + {prepared_chem_id_2})
 
     assert delete_reponse_1.status_code == 404
     assert delete_reponse_2.status_code == 404
@@ -121,6 +121,6 @@ def test_delete_chemical(client):
 
 
     # Confirm that GET requests with malformed ObjectId return 400
-    invalid_id_response_1 = client.get(chemicals_address + "1")
+    invalid_id_response_1 = client.get(chemicals_address + "/1")
 
     assert invalid_id_response_1 == 400
