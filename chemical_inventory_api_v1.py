@@ -51,6 +51,8 @@ chemical_id for each, as well as specifying amounts to add and including a space
 actual added amount. Creation of a prepared material would pull the chemical template, fill in
 the required information, and store it as a lot document. This is outside the scope of my
 demonstration portfolio project.
+* Include somewhere in README that I implemented my own primary key for lists collection rather than
+relying on MongoDB's "_id" primary key.
 
 General schema:
 * Chemical templates store general information on a given part number from a given manufacturer.
@@ -284,6 +286,30 @@ General schema:
         ]
     }
 
+# Define request schema for validated lists
+    request = {
+        "Name": str,
+        "List_entries: [
+            str
+        ]
+    }
+
+# Define response schema for validated lists
+    response = {
+        "Name": str,
+        "List_entries: [
+            str
+        ]
+    }
+
+# Define database schema for validated lists
+    record = {
+        "_id": ObjectId,
+        "Name": str,
+        "List_entries: [
+            str
+        ]
+    }
 
 
 # Notes for documentation:
@@ -295,6 +321,7 @@ General schema:
 * lots.Components.lot_id links to lots._id
 * PUT requests for chemicals or lots is expected to come in with a primary key field "_id"
 * POST requests for chemicals or lots will be stripped of their primary key field "_id" if they have one.
+* 
 
 * When writing documentation, note that redundancy of chemical fields in lots documents was chosen because they're needed when getting all lots, and that happens far more often than adding a chemical (the other time they're needed together with lot fields), so slightly larger documents and fewer server requests will be faster on average than having a sctricter separation of concerns in the database. That's also a good point for showing that I'm thinking about the right thing with the document-based database (Add to "Things I learned" section of README.)
 * If I really wanted to make this more realistic then I'd change ChemicalSchema to
@@ -341,14 +368,6 @@ be for something I actually use and/or sell.
     operation than GET /lots), I can maybe make another call within this function
     to pull the specific chemical I'm adding and then use that JSON object to load 
     the fields in the `lots` JSON object on the back end?
-        * When there's a front end, I (am not a front-end engineer in any sense of
-        the word but I) think I'd be able to cache the GET /chemicals request I made
-        when the page laoded and then use that to fill out the duplicated fields for
-        the `lots` document? However, if I have to pull the chemical to validate 
-        data entry, then I may as well just fill those fields in on the back-end,
-        right? Handling that on the back-end would replace validation because I 
-        can guarantee the front-end engineer can't mess it up if they're not 
-        responsible for sending those data.
     * So then: `chemicals` documents contain all static data for one type of 
     chemical, and `lots` documents contain those static data from `chemicals` 
     corresponding to the type of chemical being built (pulled from /chemical/<id> 
@@ -394,6 +413,7 @@ be for something I actually use and/or sell.
 There are several opportunities to improve this code that weren't implemented while building
 the minimum viable product:
 * If a chemical template already exists, return the _id for the front end.
+* Add validation for ListsSchema()
 """
 
 app = Flask(__name__)
@@ -407,7 +427,89 @@ if not hasattr(app, "mongo_client"):
     app.lots = app.db.lots
     app.lists = app.db.lists
 
-class ListsSchema():
+class HelperFunctions():
+    @staticmethod
+    def get_schema_keys(dictionary):
+        # Returns all keys in a two-level dictionary or a dict-list-dict object as a list()
+        # as well as the number of elements in the list if one value was a list
+        # Expects that only one value in the dict will be a list. Need to know how many elements
+        # exist because I need to know how many duplicates to expect to catch missing/extra
+        # fields in lot validation of component fields.
+        keys = []
+        num_list_elements = 0
+
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                for subkey in value:
+                    keys.append(f"{key}.{subkey}")
+            elif isinstance(value, list):
+                
+                for element in value:
+                    num_list_elements += 1
+                    for subkey in element:
+                        keys.append(f"{key}.{subkey}")
+            else:
+                keys.append(key)
+
+        return [keys, num_list_elements]
+    
+    @staticmethod
+    def to_datetime_utc(iso_8601_string):
+        # This function accepts a string in valid ISO 8601 format and converts it
+        # to a datetime object in the UTC time zone.
+        dt = datetime.fromisoformat(iso_8601_string)
+        utc_dt = dt.astimezone(timezone.utc)
+
+        return utc_dt
+
+class ValidationErrorCodes():
+    # Request validation error codes
+    MISS_REQ_FIELD = 1  # Required key not present
+    WRONG_TYPE = 2  # Value is wrong type
+    INVAL_LIST_ENTRY = 3    # Value does not exist in validated list
+    UNEXP_FIELD = 4    # Unexpected field in request form
+    CHEM_NOT_FOUND = 5    # Chemical not found in database
+    WRONG_DATE_FORMAT = 6    # Date not in ISO 8601 format
+    MISSING_COMP = 7    # All prepared chemicals require at least one component
+    LOT_NOT_FOUND = 8    # Lot not found in database
+    CHEM_DUPLICATE = 9    # Chemical already exists in database
+    INVALID_ID = 10    # ID field is not a valid ObjectId()
+    MISS_REQ_VALUE = 11    # Required field left blank in request
+    LIST_DUPLICATE = 12    # List already exists in database
+    LIST_NOT_FOUND = 13    # List not fond in database
+    
+    @staticmethod
+    def gen_val_err_msg(error_info):
+        # Received a list ["affected fields", error_code=int]
+        # error_code corresponds to class error code parameters
+        match error_info[1]:
+            case ValidationErrorCodes.MISS_REQ_FIELD:
+                msg = f"Missing required field: {error_info[0]}"
+            case ValidationErrorCodes.WRONG_TYPE:
+                msg = f"Incorrect data type for field: {error_info[0]}"
+            case ValidationErrorCodes.INVAL_LIST_ENTRY:
+                msg = f"Invalid entry of correct data type for field: {error_info[0]}"
+            case ValidationErrorCodes.UNEXP_FIELD:
+                msg = f"Unexpected fields: {error_info[0]}"
+            case ValidationErrorCodes.CHEM_NOT_FOUND:
+                msg = f"Chemical _id not found in database: {error_info[0]}"
+            case ValidationErrorCodes.WRONG_DATE_FORMAT:
+                msg = f"Date string must be in ISO 8601 format: {error_info[0]}"
+            case ValidationErrorCodes.MISSING_COMP:
+                msg = f"Prepared lots require at least one component"
+            case ValidationErrorCodes.LOT_NOT_FOUND:
+                msg = f"Lot _id not found in database: {error_info[0]}"
+            case ValidationErrorCodes.CHEM_DUPLICATE:
+                msg = f"Chemical already exists in database."
+            case ValidationErrorCodes.INVALID_ID:
+                msg = f"_id cannot be converted to valid ObjectId: {error_info[0]}"
+            case ValidationErrorCodes.MISS_REQ_VALUE:
+                msg = f"Field missing required value: {error_info[0]}"
+            case ValidationErrorCodes.LIST_DUPLICATE:
+                msg = f"List already exists with name: {error_info[0]}"
+        return msg
+
+class ListsSchema(ValidationErrorCodes):
     """
     This class controls the lists collection, which stores lists of validated
     values for various fields that end-users interact with. This helps to harmonize
@@ -416,30 +518,44 @@ class ListsSchema():
     Each list is queried and returned at the time the getter is called to ensure
     up-to-date information is provided.
 
-
-    
-    Please note that NOTHING IN THIS CLASS IS CURRENTLY VALIDATED because that is
-    outside the scope of what needs to be accomplished with this portfolio
-    project. I've more than made the point that I know how to validate
-    request data. I may come back to touch it up after completion.
-
-    Future upgrades:
-    * Validate list creation (constrain type and maybe entry length per list)
-    * Force each list document in the collection to have a unique name
+    ListsSchema.LIST_NAME_KEY is used as the functional primary key to prevent
+    duplication, though MongoDB's "_id" is left in place.
     """
-
+    # Schema-level class parameters
+    LIST_ID_KEY = "_id"
     LIST_NAME_KEY = "Name"
     LIST_ENT_KEY = "List_entries"
+    LIST_ENTRY_TYPE = str
     
+    # List-level class parameters
     CLASSIF_LIST_KEY = "Classifications"
     CONT_TYPES_LIST_KEY = "Container_Types"
     MANU_LIST_KEY = "Manufacturers"
     SOURCES_LIST_KEY = "Sources"
     STOR_COND_LIST_KEY = "Storage_Conditions"
     UNITS_LIST_KEY = "Units"
+
+    LIST_SCHEMA = {
+        {LIST_NAME_KEY: str},
+        {LIST_ENT_KEY: [
+            LIST_ENTRY_TYPE
+            ]
+        }
+    }
     
-    # These will be removed once I automate data loading for initialization of the app
-    def __init__(self):
+    def __init__(self, data, lists_collection):
+        self._list_request_data = data
+        self._lists_collection = lists_collection
+        
+        # Pop the self.LIST_ID_KEY to clean up for validation
+        if self.LIST_ID_KEY in self._list_request_data:
+            self.__list_req_id = self._list_request_data.pop(self.LIST_ID_KEY)
+        # Currently handled above while I use MongoDB's "_id" as the primary key, but that won't always be the case.
+        if "_id" in self._list_request_data:
+            self.__mongo_id = self._list_request_data.pop("_id")
+        
+
+        # These will be removed once I automate data loading for initialization of the app
         self.__storage_conditions = [
             "-80 °C",
             "-20 °C",
@@ -539,50 +655,95 @@ class ListsSchema():
         
         return storage_conditions[ListsSchema.LIST_ENT_KEY]
 
-class ValidationErrorCodes():
-    # Request validation error codes
-    MISS_REQ_FIELD = 1  # Required key not present
-    WRONG_TYPE = 2  # Value is wrong type
-    INVAL_LIST_ENTRY = 3    # Value does not exist in validated list
-    UNEXP_FIELD = 4    # Unexpected field in request form
-    CHEM_NOT_FOUND = 5    # Chemical not found in database
-    WRONG_DATE_FORMAT = 6    # Date not in ISO 8601 format
-    MISSING_COMP = 7    # All prepared chemicals require at least one component
-    LOT_NOT_FOUND = 8    # Lot not found in database
-    CHEM_DUPLICATE = 9    # Chemical already exists in database
-    INVALID_ID = 10    # ID field is not a valid ObjectId()
-    MISS_REQ_VALUE = 11    # Required field left blank in request
-    
-    @staticmethod
-    def gen_val_err_msg(error_info):
-        # Received a list ["affected fields", error_code=int]
-        # error_code corresponds to class error code parameters
-        match error_info[1]:
-            case ValidationErrorCodes.MISS_REQ_FIELD:
-                msg = f"Missing required field: {error_info[0]}"
-            case ValidationErrorCodes.WRONG_TYPE:
-                msg = f"Incorrect data type for field: {error_info[0]}"
-            case ValidationErrorCodes.INVAL_LIST_ENTRY:
-                msg = f"Invalid entry of correct data type for field: {error_info[0]}"
-            case ValidationErrorCodes.UNEXP_FIELD:
-                msg = f"Unexpected fields: {error_info[0]}"
-            case ValidationErrorCodes.CHEM_NOT_FOUND:
-                msg = f"Chemical _id not found in database: {error_info[0]}"
-            case ValidationErrorCodes.WRONG_DATE_FORMAT:
-                msg = f"Date string must be in ISO 8601 format: {error_info[0]}"
-            case ValidationErrorCodes.MISSING_COMP:
-                msg = f"Prepared lots require at least one component"
-            case ValidationErrorCodes.LOT_NOT_FOUND:
-                msg = f"Lot _id not found in database: {error_info[0]}"
-            case ValidationErrorCodes.CHEM_DUPLICATE:
-                msg = f"Chemical already exists in database."
-            case ValidationErrorCodes.INVALID_ID:
-                msg = f"_id cannot be converted to valid ObjectId: {error_info[0]}"
-            case ValidationErrorCodes.MISS_REQ_VALUE:
-                msg = f"Field missing required value: {error_info[0]}"
-        return msg
+    def check_list_name_exist(list_name):
+        # Checks to see if a list already exists with a given name.
+        # Returns all matching records, though there should be either only
+        # one or none that match.
 
-class ChemicalSchema(ValidationErrorCodes, ListsSchema):
+        result = list(app.lists.find(
+            {ListsSchema.LIST_NAME_KEY: list_name}
+        ))
+
+        return result
+
+    def validate_list_form(self, request_method):
+        # This function is designed to short-circuit at the first error detection
+
+        error_info = [None, 0]    # [str(affected fields), int(error_code)]
+        
+        if error_info[0] == None:
+            # Check for extra keys
+            request_keys = HelperFunctions.get_schema_keys(
+                self._list_request_data
+            )
+            schema_keys = HelperFunctions.get_schema_keys(
+                self.LIST_SCHEMA
+            )
+
+            # Reassign the list of keys. Other return value not needed
+            schema_keys = schema_keys[0]
+            request_keys = request_keys[0]
+
+            extra_keys = list(request_keys - schema_keys)
+
+            if extra_keys:
+                error_info = [extra_keys, self.UNEXP_FIELD]
+        
+        # Validate types and existence of fields and values
+        if error_info[0] == None:
+            for key in self.LIST_SCHEMA:
+                if key == self.LIST_NAME_KEY:
+                    if not key in self._list_request_data:
+                        error_info = [key, self.MISS_REQ_FIELD]
+                        break
+                    elif not self._list_request_data[key]:
+                        error_info = [key, self.MISS_REQ_VALUE]
+                        break
+                    elif not type(self._list_request_data[key]) == self.LIST_SCHEMA[key]:
+                        error_info = [key, self.WRONG_TYPE]
+                        break
+                elif key == self.LIST_ENT_KEY:
+                    if not key in self._list_request_data:
+                        error_info = [key, self.MISS_REQ_FIELD]
+                        break
+                    elif not self._list_request_data[key]:
+                        error_info = [key, self.MISS_REQ_VALUE]
+                        break
+                    for entry in self._list_request_data[key]:
+                        if not type(entry) == self.LIST_ENTRY_TYPE:
+                            error_info = [
+                                str(self._list_request_data[key][entry]),
+                                self.WRONG_TYPE
+                                ]
+                        break
+                
+                if not error_info[0] == None:
+                    # Break outer loop is inner loop finds error.
+                    # Redundant in current schema; future-proofing.
+                    break
+        
+        # Check for existence or non-existence of requested list name
+        if error_info[0] == None:
+            if request_method.upper() == "POST":
+                if self.check_list_name_exist(self._list_request_data[key]):
+                    error_info = [self._list_request_data[key], self.LIST_DUPLICATE]
+            elif request_method.upper() == "PUT":
+                if self.check_list_name_exist(self._list_request_data[key]):
+                    error_info = [self._list_request_data[key], self.LIST_NOT_FOUND]
+
+        return error_info
+
+    def build_list_record(self):
+        # Build dictionary object to add new list record using mandatory schema
+        record = {}
+
+        record[self.LIST_NAME_KEY] = self._list_request_data[self.LIST_NAME_KEY]
+        for entry in self._list_request_data[self.LIST_ENT_KEY]:
+            record[self.LIST_ENT_KEY].append(entry)
+
+        return record
+
+class ChemicalSchema(ListsSchema):
     # Explain what a chemical class is as opposed to a lot. Explain why the addition of chemicals
     # and lots harmonizes data despite creating some redundancy, and why the addition of lots and
     # chemicals are isolated actions.
@@ -644,31 +805,6 @@ class ChemicalSchema(ValidationErrorCodes, ListsSchema):
         # Currently handled above while I use MongoDB's "_id" as the primary key, but that won't always be the case.
         if "_id" in self._chem_request_data:
             self.__mongo_id = self._chem_request_data.pop("_id")
-
-    @staticmethod
-    def get_schema_keys(dictionary):
-        # Returns all keys in a two-level dictionary or a dict-list-dict object as a list()
-        # as well as the number of elements in the list if one value was a list
-        # Expects that only one value in the dict will be a list. Need to know how many elements
-        # exist because I need to know how many duplicates to expect to catch missing/extra
-        # fields in lot validation of component fields.
-        keys = []
-        num_list_elements = 0
-
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                for subkey in value:
-                    keys.append(f"{key}.{subkey}")
-            elif isinstance(value, list):
-                
-                for element in value:
-                    num_list_elements += 1
-                    for subkey in element:
-                        keys.append(f"{key}.{subkey}")
-            else:
-                keys.append(key)
-
-        return [keys, num_list_elements]
     
     @staticmethod
     def query_current_totals(lots_collection, chemical_id):
@@ -711,15 +847,6 @@ class ChemicalSchema(ValidationErrorCodes, ListsSchema):
             ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
             ChemicalSchema.AVAIL_OPEN_KEY: current_avail_open
         }
-    
-    @staticmethod
-    def to_datetime_utc(iso_8601_string):
-        # This function accepts a string in valid ISO 8601 format and converts it
-        # to a datetime object in the UTC time zone.
-        dt = datetime.fromisoformat(iso_8601_string)
-        utc_dt = dt.astimezone(timezone.utc)
-
-        return utc_dt
 
     def find_chemical_form(self, query, chemicals_collection=None):
         # Returns document from chemicals collection with specified _id
@@ -772,22 +899,22 @@ class ChemicalSchema(ValidationErrorCodes, ListsSchema):
             elif not self._chem_request_data[self.SOURCE_KEY] in self.sources:
                 error_info = [self.SOURCE_KEY, self.INVAL_LIST_ENTRY]
 
-        # Check for extra/missing fields in request
+        # Check for extra fields in request
         if error_info[0] == None: 
-            request_keys = ChemicalSchema.get_schema_keys(
+            request_keys = HelperFunctions.get_schema_keys(
                 self._chem_request_data
                 )
-            schema_keys = ChemicalSchema.get_schema_keys(
+            schema_keys = HelperFunctions.get_schema_keys(
                 self.CHEMICAL_SCHEMA
                 )
             
             if self._chem_request_data[self.SOURCE_KEY] == "Purchased":
-                irrelevant_keys = ChemicalSchema.get_schema_keys(
+                irrelevant_keys = HelperFunctions.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PREP_FIELD_KEY]
                     )
                 irrelevant_keys.append(self.PREP_FIELD_KEY)
             elif self._chem_request_data[self.SOURCE_KEY] == "Prepared":
-                irrelevant_keys = ChemicalSchema.get_schema_keys(
+                irrelevant_keys = HelperFunctions.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PURCH_FIELD_KEY]
                     )
                 irrelevant_keys.append(self.PURCH_FIELD_KEY)
@@ -961,7 +1088,6 @@ class ChemicalSchema(ValidationErrorCodes, ListsSchema):
 
     def build_chem_record(self, chemical_id=ObjectId(), req_method=""):
         # Build dictionary object to add new record using mandatory schema.
-        # lots_collection is type pymongo.collection.Collection
         record = {}
 
         for key in self.CHEMICAL_SCHEMA:
@@ -1096,16 +1222,16 @@ class LotSchema(ChemicalSchema):
 
         # Check for extra keys in request
         if error_info[0] == None:
-            request_keys = ChemicalSchema.get_schema_keys(
+            request_keys = HelperFunctions.get_schema_keys(
                 self._lot_request_data
             )
 
             if self._chem_data[self.SOURCE_KEY] == self.PURCH_FIELD_KEY:
-                schema_keys = ChemicalSchema.get_schema_keys(
+                schema_keys = HelperFunctions.get_schema_keys(
                     self.LOT_SCHEMA[self.PURCH_FIELD_KEY]
                 )
             else:
-                schema_keys = ChemicalSchema.get_schema_keys(
+                schema_keys = HelperFunctions.get_schema_keys(
                     self.LOT_SCHEMA[self.PREP_FIELD_KEY]
                 )
                 if schema_keys[1] == 0:
@@ -1309,17 +1435,17 @@ class LotSchema(ChemicalSchema):
                 self.MANU_LOT_KEY: self._lot_request_data[self.MANU_LOT_KEY]
                 })
             record.insert(7, {
-                self.OPEN_KEY: ChemicalSchema.to_datetime_utc(
+                self.OPEN_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.OPEN_KEY]
                 )
                 })
             record.insert(8, {
-                self.EXPIRY_KEY: ChemicalSchema.to_datetime_utc(
+                self.EXPIRY_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.EXPIRY_KEY]
                 )
                 })
             record.insert(9, {
-                self.EMPTY_KEY: ChemicalSchema.to_datetime_utc(
+                self.EMPTY_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.EMPTY_KEY]
                 )
                 })
@@ -1335,17 +1461,17 @@ class LotSchema(ChemicalSchema):
                 self.CONT_TYPE_KEY: self._lot_request_data[self.CONT_TYPE_KEY]
                 })
             record.insert(10, {
-                self.PREP_DATE_KEY: ChemicalSchema.to_datetime_utc(
+                self.PREP_DATE_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.PREP_DATE_KEY]
                 )
                 })
             record.insert(11, {
-                self.EXPIRY_KEY: ChemicalSchema.to_datetime_utc(
+                self.EXPIRY_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.EXPIRY_KEY]
                 )
                 })
             record.insert(12, {
-                self.EMPTY_KEY: ChemicalSchema.to_datetime_utc(
+                self.EMPTY_KEY: HelperFunctions.to_datetime_utc(
                     self._lot_request_data[self.EMPTY_KEY]
                 )
                 })
@@ -1375,7 +1501,7 @@ class LotSchema(ChemicalSchema):
                 component_attrs[self.MANU_LOT_KEY] = comp_lot_rec_purch[self.MANU_LOT_KEY]
                 component_attrs[self.AMT_KEY] = added_component[self.AMT_KEY]
                 component_attrs[self.UNIT_KEY] = added_component[self.UNIT_KEY]
-                component_attrs[self.EXPIRY_KEY] = ChemicalSchema.to_datetime_utc(
+                component_attrs[self.EXPIRY_KEY] = HelperFunctions.to_datetime_utc(
                     comp_lot_rec[self.EXPIRY_KEY]
                 )
                 
@@ -1385,7 +1511,15 @@ class LotSchema(ChemicalSchema):
         return record
 
 
-# Fetch a list of all chemicals
+
+
+
+
+
+
+
+
+# Fetch all chemical documents
 @app.route("/chemicals", methods=["GET"])
 def get_all_chemicals():
     all_chemicals = list(app.chemicals.find())
@@ -1430,7 +1564,7 @@ def get_chemical(chemical_id):
         result = app.chemicals.find_one(
             {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
         )
-        if result == None:
+        if not result:
             response = jsonify({"error": "Not found"}), 404
         else:
             result[ChemicalSchema.CHEM_ID_KEY] = str(
@@ -1483,16 +1617,18 @@ def delete_chemical(chemical_id):
         result = app.chemicals.delete_one(
             {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
         )
+
         if result.deleted_count == 0:
             response = jsonify({"error": "Not found"}), 404
         else:
-            response = "", 204
+            response = jsonify({"deleted_count": result.deleted_count}), 204
+
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400   
     
     return response
 
-# Fetch a list of all lots
+# Fetch all lot documents
 @app.route("/lots", methods=["GET"])
 def get_all_lots():
     all_lots = list(app.lots.find())
@@ -1544,7 +1680,7 @@ def get_lot(lot_id):
     try:
         result = app.lots.find_one({LotSchema.LOT_ID_KEY: ObjectId(lot_id)})
         
-        if result == None:
+        if not result:
             response = jsonify({"error": "Not found"}), 404
         else:
             inval_json_types = [ObjectId, datetime]
@@ -1607,14 +1743,109 @@ def update_lot(lot_id):
 def delete_lot(lot_id):
     try:
         result = app.lots.delete_one({LotSchema.LOT_ID_KEY: ObjectId(lot_id)})
+       
         if result.deleted_count == 0:
             response = jsonify({"error": "Not found"}), 404
         else:
-            response = "", 204
+            response = jsonify({"deleted_count": result.deleted_count}), 204
+
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400
 
     return response
+
+# Fetch all list documents
+@app.route("/lists", methods=["GET"])
+def get_all_lists():
+    all_lists = list(app.lists.find(
+        {},
+        {"_id": 0}
+        ))
+    
+    response = jsonify(all_lists), 200
+
+    return response
+
+# Add a new list document according to the database schema
+@app.route("/lists", methods=["POST"])
+def create_list():
+    data = request.get_json()
+    new_list = ListsSchema(data, app.lists)
+
+    if not data:
+        response = jsonify({}"error": "Missing request body"}), 400
+    else:
+        # Validate data in request
+        form_val = new_list.validate_list_form()
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            record = new_list.build_list_record()
+            result = app.lists.insert_one(record)
+
+            response = jsonify({"inserted_id": str(result.inserted_id)}), 201
+        else:
+            response = jsonify({"error": msg}), 422
+    
+    return response
+
+# Fetch a specific list by name
+@app.route("/lists/<list_name>", methods=["GET"])
+def get_list_by_name(list_name):
+    result = app.lists.find_one(
+        {ListsSchema.LIST_NAME_KEY: list_name},
+        {ListsSchema.LIST_ID_KEY: 0}
+        )
+    
+    if not result:
+        response = jsonify({"error": "List not found"}), 404
+    else:
+        response = jsonify(result), 200
+    
+    return response
+
+# Update an existing list according to the database schema
+@app.route("/lists/<list_name>", methods=["PUT"])
+def update_list_by_name(list_name):
+    data = request.get_json()
+    updated_list = ListsSchema(data, app.lists)
+
+    if not data:
+        response = jsonify({"error": "Missing request body"}), 400
+    else:
+        # Validate data in request
+        form_val = updated_list.validate_list_form(request.method)
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            record = updated_list.build_list_record()
+            result = app.lists.update_one(
+                {ListsSchema.LIST_NAME_KEY: list_name},
+                {"$set": record}
+            )
+
+            response = jsonify({"modified_count": str(result.modified_count)}), 200
+        else:
+            response = jsonify({"error": msg}), 200
+
+    return response
+
+# Remove a specific list from the database by list name
+# This action is not recommended.
+@app.route("/lists/<list_name>", methods=["DELETE"])
+def delete_list_by_name(list_name):
+    result = app.lists.delete_one(
+        {ListsSchema.LIST_NAME_KEY: list_name}
+        )
+    
+    if result.deleted_count == 0:
+        response = jsonify({"error": "List not found"}), 404
+    else:
+        response = jsonify({"deleted_count": result.deleted_count}), 204
+    
+    return response
+
+
 
 if __name__ == "__main__":
     # Turn off debug=True when finished. Security concern.
