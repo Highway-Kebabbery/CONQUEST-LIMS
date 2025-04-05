@@ -58,8 +58,8 @@ General schema:
 * The addition of chemical templates is highly validated to prevent bloat and disorganization from duplicate templates for the same manufacturer part number.
 * Chemical templates must be added before a lot of that chemical can be logged into the system.
 * Purchased materials must be first logged into the system before prepared materials can be logged (edge case).
-* When the app is updgraded to use the database to store validated lists: lists collection stores 
-documents containing {"Name": str}, {"list_entries": [list, of, validated, values]} (one document per list as they'll be queried as needed).
+* Lists collection stores documents containing validated lists to constrain end-user entry.
+    * Each document contains one list of the form {"Name": <List_Name>}, {"List_entries": [list, of, validated, values]}
 
 
 # Define request structure and data type for prepared and purchased chemicals and prepared and purchased lots
@@ -69,15 +69,15 @@ documents containing {"Name": str}, {"list_entries": [list, of, validated, value
         "_id": str,                # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). chemicals collection primary key.
         "Name": str,               # Required.
         "CAS_Number": str,         # Required.
-        "Classification": str,     # Required. This value must come from the Lists() class or lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
-        "Storage_Condition": str,  # Required. This value must come from the Lists() class or lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
-        "Source": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
+        "Classification": str,     # Required. This value must come from the lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
+        "Storage_Condition": str,  # Required. This value must come from the lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
+        "Source": str,             # Required. This value must come from the lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
         "Purchased_Fields": {      # Required.
-            "Manufacturer": str,              # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Manufacturers"} list in the database depending on whether the lists collection is in service yet.
+            "Manufacturer": str,              # Required for purchased materials. This value must come from the lists.{"Name": "Manufacturers"} list in the database depending on whether the lists collection is in service yet.
             "Manufacturer_Part_Number": str,  # Required for purchased materials.
             "Amount": [int, float],           # Required for purchased materials. Either type is acceptable.
-            "Units": str,                     # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
-            "Container_Type": str             # Required for purchased materials. This value must come from the Lists() class or lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
+            "Units": str,                     # Required for purchased materials. This value must come from the lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+            "Container_Type": str             # Required for purchased materials. This value must come from the lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
         }
     }
 * Prepared chemicals:
@@ -85,9 +85,9 @@ documents containing {"Name": str}, {"list_entries": [list, of, validated, value
         "_id": str,                # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). chemicals collection primary key.
         "Name": str,               # Required.
         "CAS_Number": str,         # Required.
-        "Classification": str,     # Required. This value must come from the Lists() class or lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
-        "Storage_Condition": str,  # Required. This value must come from the Lists() class or lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
-        "Source": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
+        "Classification": str,     # Required. This value must come from the lists.{"Name": "Classifications"} list in the database depending on whether the lists collection is in service yet.
+        "Storage_Condition": str,  # Required. This value must come from the lists.{"Name": "Storage_Conditions"} list in the database depending on whether the lists collection is in service yet.
+        "Source": str,             # Required. This value must come from the lists.{"Name": "Sources"} list in the database depending on whether the lists collection is in service yet.
         "Prepared_Fields": {      # Required.
             "Method_Step_Reference": str  # Required for prepared materials. End users must be as explicit as possible when referring to laboratory SOP method/step number as only one chemical template is allowed per method/step number.
         }
@@ -106,8 +106,8 @@ documents containing {"Name": str}, {"list_entries": [list, of, validated, value
         "_id": str,               # Required for PUT, discarded for POST. String must be convertable to a valid ObjectId(). lots collection primary key.
         "chemical_id": str,       # Required. String must be convertable to a valid ObjectId(). Links to chemicals._id. Must be the "_id" of an existing chemicals collection template.
         "Amount": [int, float],   # Required. Either type is acceptable.
-        "Units": str,             # Required. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
-        "Container_Type": str,    # Required. This value must come from the Lists() class or lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
+        "Units": str,             # Required. This value must come from the lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+        "Container_Type": str,    # Required. This value must come from the lists.{"Name": "Container_Types"} list in the database depending on whether the lists collection is in service yet.
         "Preparation_Date": str,  # Required. Must be a string in ISO 8601 format.
         "Expiry_Date": str,       # Required. Must be a string in ISO 8601 format.
         "Empty_Date": str,        # Optional (use of field would be proceduralized by lab SOP). Must be a string in ISO 8601 format.
@@ -115,7 +115,7 @@ documents containing {"Name": str}, {"list_entries": [list, of, validated, value
             {
                 "lot_id": str,           # Required. String must be convertable to a valid ObjectId(). Links to lots._id. Must be the "_id" of an existing lots collection lot.
                 "Amount": [int, float],  # Required. Either type is acceptable.
-                "Units": str             # Required. This value must come from the Lists() class or lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
+                "Units": str             # Required. This value must come from the lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
             }
         ]
     }
@@ -287,10 +287,15 @@ documents containing {"Name": str}, {"list_entries": [list, of, validated, value
 
 
 # Notes for documentation:
-* All dates must be received as strings in ISO 8601 format and are converted to UTC, so they should be sent as local times with a timezone.
-* All dates are served to front-end as UTC dates.
+* All dates must be received by the back end as strings in ISO 8601 format (including timezone offset) and are converted to UTC for storage.
+* All dates are served to front-end as UTC date strings in ISO 8601 format.
+* All database keys (currently chemicals._id, lots._id, lots.chemical_id, and Lots.Components.lot_id) must be received by the back end as strings that can be converted to valid ObjectIds.
+* All database keys of type ObjectId are served to the front end as strings.
 * lots.chemical_id links to chemicals._id
-* PUT for chemicals or lots is expected to come in with an _id
+* lots.Components.lot_id links to lots._id
+* PUT requests for chemicals or lots is expected to come in with a primary key field "_id"
+* POST requests for chemicals or lots will be stripped of their primary key field "_id" if they have one.
+
 * When writing documentation, note that redundancy of chemical fields in lots documents was chosen because they're needed when getting all lots, and that happens far more often than adding a chemical (the other time they're needed together with lot fields), so slightly larger documents and fewer server requests will be faster on average than having a sctricter separation of concerns in the database. That's also a good point for showing that I'm thinking about the right thing with the document-based database (Add to "Things I learned" section of README.)
 * If I really wanted to make this more realistic then I'd change ChemicalSchema to
 StandardReagentTemplate and change LotSchema to StandardReagent. I'd then use
@@ -359,25 +364,17 @@ be for something I actually use and/or sell.
 
 
 # Where to pick up:
-* All dates and relevant _ids are converted from str to datetime.timezone.utc or ObjectId at record construction
-    * Are they converted to strings at retrieval? (complete end points and then you'll know how best to do this.)
-* Finish lot end points
-    * I'm gonig to end up with more logic than I'd like in the end point to convert dates to strings. Just note that it's marked for a future upgrade in situ and in the app docstring.
-* Finish chemical end points (triple-check error code match-case)
-* Ensure all datetimes are received and validated as ISO 8601 strings, but returned as strings
-* Ensure that ID fields are always received as strings, converted to ObjectId() explicitly in every query, stored as ObjectId(), and returned as strings.
-* Double-check and make sure that I validate that IDs successfully convert to ObjectId() type and work
-    * _id is stripped when it comes in, but it's validated both for type and existence when I run queries using try-except. Just double-check for past me.
-    * PARENT_CHEM_ID should be validated when prepared lot components are validated, but double-check for past me.
+
 * Check for bugs
 * Write tests
+    * Write script to load lists into lists collection.
     * Write script to load database within a test
     * I'll need to create chemicals then query them to get their _ids and do the same with lots. Flesh out tests later.
     * Test all chemical and lot methods/end points for now and call it tested
-* Depending on whether I could quikcly get script to laod database, write code to load it with lists collection
+* Depending on whether I could quikcly get script to load database, write code to load it with lists collection
     * No, you're not writing end points to edit the lists collection. That can be a future upgrade.
     * You're not writing validation for the lists collection given there are no end points to interface with the lists collection.
-        * Note these things in the Lists() docstring
+        * Note these things in the ListsSchema() docstring
 * Write docstrings and clean up comments for entire program in its current state
     * For each class, note which error codes it can return for ease of use in api end points below
     * Note which fields are stripped from the request and stored in instance variables to allow reuse of validation for both POST anf PUT methods
@@ -408,20 +405,40 @@ if not hasattr(app, "mongo_client"):
     app.db = app.mongo_client.chemical_inventory
     app.chemicals = app.db.chemicals
     app.lots = app.db.lots
+    app.lists = app.db.lists
 
-class Lists():
-    # Ideally I'd store these in the database and pull them for use when needed,
-    # but I need to get *something* running for now. I know how to use the
-    # database for this purpose, but this API is taking long enough as is and I want
-    # the list logic in place for now.
-    #
-    # When the rest of it is up and running, I'll add this as a collection to the DB
-    # and replace calls to this class with database queries.
-    #
-    # I can keep the class. Replace the lists/getter logic so that getters just
-    # run a query for the list at the time they're called for up-to-date data.
-    # Keep the getter names the same and I won't need to change any code other than
-    # adding snippets to validate that the query was successful.
+class ListsSchema():
+    """
+    This class controls the lists collection, which stores lists of validated
+    values for various fields that end-users interact with. This helps to harmonize
+    data entry across all users and prevent entry error.
+
+    Each list is queried and returned at the time the getter is called to ensure
+    up-to-date information is provided.
+
+
+    
+    Please note that NOTHING IN THIS CLASS IS CURRENTLY VALIDATED because that is
+    outside the scope of what needs to be accomplished with this portfolio
+    project. I've more than made the point that I know how to validate
+    request data. I may come back to touch it up after completion.
+
+    Future upgrades:
+    * Validate list creation (constrain type and maybe entry length per list)
+    * Force each list document in the collection to have a unique name
+    """
+
+    LIST_NAME_KEY = "Name"
+    LIST_ENT_KEY = "List_entries"
+    
+    CLASSIF_LIST_KEY = "Classifications"
+    CONT_TYPES_LIST_KEY = "Container_Types"
+    MANU_LIST_KEY = "Manufacturers"
+    SOURCES_LIST_KEY = "Sources"
+    STOR_COND_LIST_KEY = "Storage_Conditions"
+    UNITS_LIST_KEY = "Units"
+    
+    # These will be removed once I automate data loading for initialization of the app
     def __init__(self):
         self.__storage_conditions = [
             "-80 °C",
@@ -476,31 +493,54 @@ class Lists():
 
     @property
     def storage_conditions(self):
-        return self.__storage_conditions
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.STOR_COND_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
     
     @property
     def units(self):
-        return self.__units
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.UNITS_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
     
     @property
     def containers(self):
-        return self.__containers
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.CONT_TYPES_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
     
     @property
     def sources(self):
-        return self.__sources
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.SOURCES_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
     
     @property
     def classifications(self):
-        return self.__classifications
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.CLASSIF_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
     
     @property
     def manufacturers(self):
-        return self.__manufacturers
-
-field_lists = Lists()
+        storage_conditions = app.lists.find_one(
+            {ListsSchema.LIST_NAME_KEY: ListsSchema.MANU_LIST_KEY}
+        )
+        
+        return storage_conditions[ListsSchema.LIST_ENT_KEY]
 
 class ValidationErrorCodes():
+    # Request validation error codes
     MISS_REQ_FIELD = 1  # Required key not present
     WRONG_TYPE = 2  # Value is wrong type
     INVAL_LIST_ENTRY = 3    # Value does not exist in validated list
@@ -513,9 +553,36 @@ class ValidationErrorCodes():
     INVALID_ID = 10    # ID field is not a valid ObjectId()
     MISS_REQ_VALUE = 11    # Required field left blank in request
     
+    @staticmethod
+    def gen_val_err_msg(error_info):
+        # Received a list ["affected fields", error_code=int]
+        # error_code corresponds to class error code parameters
+        match error_info[1]:
+            case ValidationErrorCodes.MISS_REQ_FIELD:
+                msg = f"Missing required field: {error_info[0]}"
+            case ValidationErrorCodes.WRONG_TYPE:
+                msg = f"Incorrect data type for field: {error_info[0]}"
+            case ValidationErrorCodes.INVAL_LIST_ENTRY:
+                msg = f"Invalid entry of correct data type for field: {error_info[0]}"
+            case ValidationErrorCodes.UNEXP_FIELD:
+                msg = f"Unexpected fields: {error_info[0]}"
+            case ValidationErrorCodes.CHEM_NOT_FOUND:
+                msg = f"Chemical _id not found in database: {error_info[0]}"
+            case ValidationErrorCodes.WRONG_DATE_FORMAT:
+                msg = f"Date string must be in ISO 8601 format: {error_info[0]}"
+            case ValidationErrorCodes.MISSING_COMP:
+                msg = f"Prepared lots require at least one component"
+            case ValidationErrorCodes.LOT_NOT_FOUND:
+                msg = f"Lot _id not found in database: {error_info[0]}"
+            case ValidationErrorCodes.CHEM_DUPLICATE:
+                msg = f"Chemical already exists in database."
+            case ValidationErrorCodes.INVALID_ID:
+                msg = f"_id cannot be converted to valid ObjectId: {error_info[0]}"
+            case ValidationErrorCodes.MISS_REQ_VALUE:
+                msg = f"Field missing required value: {error_info[0]}"
+        return msg
 
-
-class ChemicalSchema(ValidationErrorCodes):
+class ChemicalSchema(ValidationErrorCodes, ListsSchema):
     # Explain what a chemical class is as opposed to a lot. Explain why the addition of chemicals
     # and lots harmonizes data despite creating some redundancy, and why the addition of lots and
     # chemicals are isolated actions.
@@ -702,7 +769,7 @@ class ChemicalSchema(ValidationErrorCodes):
                 error_info = [self.SOURCE_KEY, self.MISS_REQ_FIELD]
             elif not type(self._chem_request_data[self.SOURCE_KEY]) == self.CHEMICAL_SCHEMA[self.SOURCE_KEY]:
                 error_info = [self.SOURCE_KEY, self.WRONG_TYPE]
-            elif not self._chem_request_data[self.SOURCE_KEY] in field_lists.sources:
+            elif not self._chem_request_data[self.SOURCE_KEY] in self.sources:
                 error_info = [self.SOURCE_KEY, self.INVAL_LIST_ENTRY]
 
         # Check for extra/missing fields in request
@@ -748,11 +815,11 @@ class ChemicalSchema(ValidationErrorCodes):
                         error_info = [key, self.WRONG_TYPE]
                         break
                     elif key == self.CLASSIF_KEY:
-                        if not self._chem_request_data[key] in field_lists.classifications:
+                        if not self._chem_request_data[key] in self.classifications:
                             error_info = [key, self.INVAL_LIST_ENTRY]
                         break
                     elif key == self.STORAGE_KEY:
-                        if not self._chem_request_data[key] in field_lists.storage_conditions:
+                        if not self._chem_request_data[key] in self.storage_conditions:
                             error_info = [key, self.INVAL_LIST_ENTRY]
                         break
                 else:
@@ -791,15 +858,15 @@ class ChemicalSchema(ValidationErrorCodes):
                                 error_info = [inner_key, self.WRONG_TYPE]
                                 break
                             elif inner_key == self.MANU_KEY:
-                                if not req_inner_dict[inner_key] in field_lists.manufacturers:
+                                if not req_inner_dict[inner_key] in self.manufacturers:
                                     error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
                             elif inner_key == self.UNIT_KEY:
-                                if not req_inner_dict[inner_key] in field_lists.units:
+                                if not req_inner_dict[inner_key] in self.units:
                                     error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
                             elif inner_key == self.CONT_TYPE_KEY:
-                                if not req_inner_dict[inner_key] in field_lists.containers:
+                                if not req_inner_dict[inner_key] in self.containers:
                                     error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
                     
@@ -832,7 +899,7 @@ class ChemicalSchema(ValidationErrorCodes):
                                 error_info = [inner_key, self.WRONG_TYPE]
                                 break
                             elif inner_key == self.METH_REF_KEY:
-                                if not req_inner_dict[inner_key] in field_lists.manufacturers:
+                                if not req_inner_dict[inner_key] in self.manufacturers:
                                     error_info = [inner_key, self.INVAL_LIST_ENTRY]
                                     break
 
@@ -884,11 +951,11 @@ class ChemicalSchema(ValidationErrorCodes):
                         chemical_exist_query, self._chemicals_collection
                         )
                 except InvalidId:
-                    error_info = [self.CHEM_ID_KEY, self.INVALID_ID]
+                    error_info = [str(self.__chem_req_id), self.INVALID_ID]
                 
                 if chem_data == None:
                     # Don't overwrite error code if _id key was not valid ObjectId
-                    error_info = ["", self.CHEM_NOT_FOUND]
+                    error_info = [str(self.__chem_req_id), self.CHEM_NOT_FOUND]
         
         return error_info
 
@@ -991,15 +1058,24 @@ class LotSchema(ChemicalSchema):
         # Check for and return the related chemical form's data. This is cleaned in ChemicalSchema.__init__().
         # The chemicals and lots collections are stored in the ChemicalSchema class, so they have to be passed
         # using the parameter names in LotSchema.__init__() before they can be referenced using "self."
-        id_exist_query = {self.CHEM_ID_KEY: ObjectId(self._lot_request_data[self.PARENT_CHEM_ID_KEY])}
+        id_exist_query = {
+            self.CHEM_ID_KEY: ObjectId(self._lot_request_data[self.PARENT_CHEM_ID_KEY])
+            }
+        
         try:
             chem_data = self.find_chemical_form(id_exist_query, chemicals_collection)
         except InvalidId:
-            self._chem_id_error = [self.PARENT_CHEM_ID_KEY, self.INVALID_ID]
+            self._chem_id_error = [
+                str(self._lot_request_data[self.PARENT_CHEM_ID_KEY,]),
+                self.INVALID_ID
+                ]
         
         if not chem_data:
             # If chemical not found, error returned at beginning of validation. Construction unaffected.
-            self._chem_id_error = ["chemical_id", self.CHEM_NOT_FOUND]
+            self._chem_id_error = [
+                str(self._lot_request_data[self.PARENT_CHEM_ID_KEY]),
+                self.CHEM_NOT_FOUND
+                ]
         
         super().__init__(
             chem_data,
@@ -1125,7 +1201,7 @@ class LotSchema(ChemicalSchema):
                                                 ]
                                             break
                                         elif subkey == self.UNIT_KEY:
-                                            if not req_comp_dict[subkey] in field_lists.units:
+                                            if not req_comp_dict[subkey] in self.units:
                                                 error_info = [
                                                     f"{key}.Component #{component + 1}.{subkey}",
                                                     self.INVAL_LIST_ENTRY
@@ -1205,10 +1281,13 @@ class LotSchema(ChemicalSchema):
                     lot_exist_query, self._lots_collection
                     )
                 except InvalidId:
-                    error_info = [self.LOT_ID_KEY, self.INVALID_ID]
+                    error_info = [self.__lot_req_id, self.INVALID_ID]
                 
                 if lot_data == None:
-                    error_info = ["", self.LOT_NOT_FOUND]
+                    error_info = [
+                        str(self.__lot_req_id),
+                        self.LOT_NOT_FOUND
+                        ]
 
         return error_info
     
@@ -1306,170 +1385,234 @@ class LotSchema(ChemicalSchema):
         return record
 
 
+# Fetch a list of all chemicals
+@app.route("/chemicals", methods=["GET"])
+def get_all_chemicals():
+    all_chemicals = list(app.chemicals.find())
+    
+    for chemical in all_chemicals:
+        # Type ObjectId not JSON serializable
+        chemical[ChemicalSchema.CHEM_ID_KEY] = str(
+            chemical[ChemicalSchema.CHEM_ID_KEY]
+        )
 
-@app.route("/chemicals", methods=["GET", "POST"])
-def manage_chemicals():
-    if request.method == "GET":
-        # List all chemicals
-        all_chemicals = list(app.chemicals.find())
-        for chemical in all_chemicals:
-            # Type ObjectId not JSON serializable
-            chemical["_id"] = str(chemical["_id"])
-        response = jsonify(all_chemicals), 200
-        
-    elif request.method == "POST":
-        # Add a new chemical according to database schema.
-        data = request.get_json()
-        new_chemical = ChemicalSchema(data)
+    response = jsonify(all_chemicals), 200
 
-        if not data:
-            response = jsonify({"error": "Missing request body"}), 400
+    return response
+
+# Add a new chemical according to the database schema
+@app.route("/chemicals", methods=["POST"])
+def add_chemical():
+    data = request.get_json()
+    new_chemical = ChemicalSchema(data, app.chemicals, app.lots)
+
+    if not data:
+        response = jsonify({"error": "Missing request body"}), 400
+    else:
+        # Validate data in request
+        form_val = new_chemical.validate_chemical_form(request.method)
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            record = new_chemical.build_chem_record()
+            result = app.chemicals.insert_one(record)
+            
+            response = jsonify({"inserted_id": str(result.inserted_id)}), 201
         else:
-            # Validate data in request
-            form_val = new_chemical.validate_chemical_form(request.method)
+            response = jsonify({"error": msg}), 422
 
-            match form_val[1]:
-                case 0:
-                    record = new_chemical.build_chem_record()
-                    result = app.chemicals.insert_one(record)
-                    response = jsonify({"inserted_id": str(result.inserted_id)}), 201
-                case 1:
-                    msg = f"Missing required field: {form_val[0]}."
-                    response = jsonify({"error": msg}), 422
-                case  2:
-                    msg = f"Incorrect data type for field: {form_val[0]}."
-                    response = jsonify({"error": msg}), 422
-                case 3:
-                    msg = f'Invalid entry of correct data type for {form_val[0]}.'
-                    response = jsonify({"error": msg}), 422
-                case 4:
-                    response = jsonify({"error": f"Unexpected fields: {form_val[0]}."}), 422
-        
-    else:
-        response = jsonify({"error": "Method not allowed"}), 405
-    
     return response
 
-@app.route("/chemicals/<chemical_id>", methods=["GET", "PUT", "DELETE"])
-def manage_chemical(chemical_id):
-    if request.method == "GET":
-        # Fetch a specific chemical
-        try:
-            result = app.chemicals.find_one({"_id": ObjectId(chemical_id)})
-            if result == None:
-                response = jsonify({"error": "Not found"}), 404
-            else:
-                result["_id"] = str(result["_id"])
-                response = jsonify(result), 200
-        except InvalidId:
-            response = jsonify({"error": "Invalid ID format"}), 400
-    
-    elif request.method == "PUT":
-        # Update an existing chemical
-        data = request.get_json()
-        updated_chemical = ChemicalSchema(data)
-
-        if not data:
-            response = jsonify({"error": "Missing request body"}), 400
+# Fetch a specific chemical by _id
+@app.route("/chemicals/<chemical_id>", methods=["GET"])
+def get_chemical(chemical_id):
+    try:
+        result = app.chemicals.find_one(
+            {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
+        )
+        if result == None:
+            response = jsonify({"error": "Not found"}), 404
         else:
-            # Validate data in request
-            form_val = updated_chemical.validate_chemical_form(request.method)
+            result[ChemicalSchema.CHEM_ID_KEY] = str(
+                result[ChemicalSchema.CHEM_ID_KEY]
+            )
+            response = jsonify(result), 200
+    except InvalidId:
+        response = jsonify({"error": "Invalid ID format"}), 400
 
-            match form_val[1]:
-                case 0:
-                    try:
-                        record = updated_chemical.build_chem_record(
-                            app.lots, chemical_id, request.method
-                            )
+    return response
 
-                        result = app.chemicals.update_one(
-                            {"_id": ObjectId(chemical_id)},
-                            {"$set": record}
-                            )
-                        
-                        response = jsonify({"modified_count": str(result.modified_count)}), 200
+# Update an existing chemical according to the database schema
+@app.route("/chemicals/<chemical_id>", methods=["PUT"])
+def update_chemical(chemical_id):
+    data = request.get_json()
+    updated_chemical = ChemicalSchema(data, app.chemicals, app.lots)
 
-                    except InvalidId:
-                        response = jsonify({"error": "Invalid ID format"}), 400
-                case 1:
-                    msg = f"Missing required field: {form_val[0]}."
-                    response = jsonify({"error": msg}), 422
-                case  2:
-                    msg = f"Incorrect data type for field: {form_val[0]}."
-                    response = jsonify({"error": msg}), 422
-                case 3:
-                    msg = f'Invalid entry of correct data type for {form_val[0]}.'
-                    response = jsonify({"error": msg}), 422
-                case 4:
-                    response = jsonify({"error": f"Unexpected fields: {form_val[0]}."}), 422
-
-    elif request.method == "DELETE":
-        # Delete a chemical
-        try:
-            result = app.chemicals.delete_one({"_id": ObjectId(chemical_id)})
-            if result.deleted_count == 0:
-                response = jsonify({"error": "Not found"}), 404
-            else:
-                response = "", 204
-        except InvalidId:
-            response = jsonify({"error": "Invalid ID format"}), 400   
-
+    if not data:
+        response = jsonify({"error": "Missing request body"}), 400
     else:
-        response = jsonify({"error": "Method not allowed"}), 405
+        # Validate data in request
+        form_val = updated_chemical.validate_chemical_form(request.method)
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            try:
+                record = updated_chemical.build_chem_record(
+                    chemical_id,
+                    request.method
+                )
+
+                result = app.chemicals.update_one(
+                    {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)},
+                    {"$set": record}
+                )
+                
+                response = jsonify({"modified_count": str(result.modified_count)}), 200
+
+            except InvalidId:
+                response = jsonify({"error": "Invalid ID format"}), 400
+        else:
+            response = jsonify({"error": msg}), 422
+
+        return response
+
+# Delete a specific chemical by _id
+@app.route("/chemicals/<chemical_id>", methods=["DELETE"])
+def delete_chemical(chemical_id):
+    try:
+        result = app.chemicals.delete_one(
+            {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
+        )
+        if result.deleted_count == 0:
+            response = jsonify({"error": "Not found"}), 404
+        else:
+            response = "", 204
+    except InvalidId:
+        response = jsonify({"error": "Invalid ID format"}), 400   
     
     return response
 
-@app.route("/lots", methods=["GET", "POST"])
-def manage_lots():
-    if request.method == "GET":
-        # Get all lots
-        all_lots = list(app.lots.find())
-        for lot in all_lots:
-            lot["_id"] = str(lot["_id"])
-        response = jsonify(all_lots), 200
+# Fetch a list of all lots
+@app.route("/lots", methods=["GET"])
+def get_all_lots():
+    all_lots = list(app.lots.find())
+    inval_json_types = [ObjectId, datetime]
+    
+    # re-type JSON-incompatible data types to strings
+    for lot in all_lots:
+        for key in lot:
+            if type(lot[key]) in inval_json_types:
+                lot[key] = str(lot[key])
+            elif isinstance(lot[key], list) and isinstance(lot[key][0], dict):
+                # Iterate through all values of all components
+                for component in lot[key]:
+                    component_dict = lot[key][component]
+                    for subkey in component_dict:
+                        if type(subkey) in inval_json_types:
+                            component_dict[subkey] = str(component_dict[subkey])
 
-    elif request.method == "POST":
-        # Create new lot
-        #REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        pass
+    response = jsonify(all_lots), 200
 
+    return response
+
+# Add a new lot according to the database schema
+@app.route("/lots", methods=["POST"])
+def add_lot():
+    data = request.get_json()
+    new_lot = LotSchema(data, app.chemicals, app.lots)
+
+    if not data:
+        response = jsonify({"error": "Missing request body"}), 400
     else:
-        response = jsonify({"error": "Method not allowed"}), 405
+        # Validate data in request
+        form_val = new_lot.validate_lot_form(request.method)
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            record = new_lot.build_lot_record()
+            result = app.lots.insert_one(record)
+
+            response = jsonify({"inserted_id": str(result.inserted_id)}), 201
+        else:
+            response = jsonify({"error": msg}, 422)
     
     return response
+
+# Fetch a specific lot by _id
+@app.route("/lots/<lot_id>", methods=["GET"])
+def get_lot(lot_id):
+    try:
+        result = app.lots.find_one({LotSchema.LOT_ID_KEY: ObjectId(lot_id)})
+        
+        if result == None:
+            response = jsonify({"error": "Not found"}), 404
+        else:
+            inval_json_types = [ObjectId, datetime]
+
+            # re-type JSON-incompatible data types to strings
+            for lot in result:
+                for key in lot:
+                    if type(lot[key]) in inval_json_types:
+                        lot[key] = str(lot[key])
+                    elif isinstance(lot[key], list) and isinstance(lot[key][0], dict):
+                        # Iterate through all values of all components
+                        for component in lot[key]:
+                            component_dict = lot[key][component]
+                            for subkey in component_dict:
+                                if type(subkey) in inval_json_types:
+                                    component_dict[subkey] = str(component_dict[subkey])
+
+            response = jsonify(result), 200
     
-@app.route("/lots/<lot_id>", methods=["GET", "PUT", "DELETE"])
-def manage_lot(lot_id):
-    if request.method == "GET":
-        # Get specific lot
-        try:
-            result = app.lots.find_one({"_id": ObjectId(lot_id)})
-            if result == None:
-                response = jsonify({"error": "Not found"}), 404
-            else:
-                result["_id"] = str(result["_id"])
-                response = jsonify(result), 200
-        except InvalidId:
-            response = jsonify({"error": "Invalid ID format"}), 400
+    except InvalidId:
+        response = jsonify({"error": "Invalid ID format"}), 400
+    
+    return response
 
-    elif request.method == "PUT":
-        # Update specific lot
-        #REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        pass
+# Update a specific lot by _id according to the database schema
+@app.route("/lots/<lot_id>", methods=["PUT"])
+def update_lot(lot_id):
+    data = request.get_json()
+    updated_lot = LotSchema(data, app.chemicals, app.lots)
 
-    elif request.method == "DELETE":
-        # Delete specific lot
-        try:
-            result = app.lots.delete_one({"_id": ObjectId(lot_id)})
-            if result.deleted_count == 0:
-                response = jsonify({"error": "Not found"}), 404
-            else:
-                response = "", 204
-        except InvalidId:
-            response = jsonify({"error": "Invalid ID format"}), 400
-
+    if not data:
+        response = jsonify({"error": "Missing request body"}), 400
     else:
-        response = jsonify({"error": "Method not allowed"}), 405
+        # Validate data in request
+        form_val = updated_lot.validate_lot_form(request.method)
+        msg = ValidationErrorCodes.gen_val_err_msg(form_val)
+
+        if form_val[1] == 0:
+            try:
+                record = updated_lot.build_lot_record(
+                    lot_id,
+                    request.method
+                )
+
+                result = app.lots.update_one(
+                    {LotSchema.LOT_ID_KEY: ObjectId(lot_id)},
+                    {"$set": record}
+                )
+
+                response = jsonify({"modified_count": str(result.modified_count)}), 200
+            except InvalidId:
+                response = jsonify({"error": "Invalid ID format"}), 400
+        else:
+            response = jsonify({"error": msg}), 422
+    
+    return response
+
+# Delete a specific lot by _id
+@app.route("/lots/<lot_id>", methods=["DELETE"])
+def delete_lot(lot_id):
+    try:
+        result = app.lots.delete_one({LotSchema.LOT_ID_KEY: ObjectId(lot_id)})
+        if result.deleted_count == 0:
+            response = jsonify({"error": "Not found"}), 404
+        else:
+            response = "", 204
+    except InvalidId:
+        response = jsonify({"error": "Invalid ID format"}), 400
 
     return response
 
