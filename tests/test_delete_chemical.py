@@ -52,7 +52,7 @@ valid_prepared_chemical_1 = {
 valid_prepared_chemical_2 = {}
 
 
-def test_get_chemical(client):
+def test_delete_chemical(client):
     # POST valid lists and confirm success
     post_list_response_1 = client.post("/chemicals", json=classifications)
     post_list_response_2 = client.post("/chemicals", json=container_types)
