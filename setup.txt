@@ -73,3 +73,7 @@ list setup:
 {"Name": "Storage_conditions"}, {"List_entries": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
 {"Name": "Units"}, {"List_entries": ["g", "kg", "L", "mL", "µL"]}
 
+
+I learned many things. one is the use of deepcopy to keep multiple references to the same mutable
+object from ruining it between TESTS
+I learned that it's easy to forget the method parentheses when calling a class method that only serves to return a value from another class defined below the first class =__=
