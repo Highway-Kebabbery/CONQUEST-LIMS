@@ -1,10 +1,18 @@
 from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema
 
+
+
+
+"""
+
+NEED TO PUT STORAGE CONDITION IN ALL TESTS FOR PURCHASED CHEMICALS
+
+"""
 # Validated lists
-classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder"]}
-container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial"]}
-manufacturers = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.MANU_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
-sources = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.SOURCES_LIST_KEY, f"{ListsSchema.LIST_ENT_KEY}": ["Purchased", "Prepared"]}
+classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water"]}
+container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial"]}
+manufacturers = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.MANU_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
+sources = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.SOURCES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Purchased", "Prepared"]}
 storage_conditions = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.STOR_COND_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
 units = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.UNITS_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["g", "kg", "L", "mL", "µL"]}
 
@@ -12,7 +20,8 @@ units = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.UNITS_LIST_KEY(), f"{ListsS
 valid_purchased_chemical_1 = {
     ChemicalSchema.NAME_KEY: "Methanol (Certified ACS), Fisher Chemical",
     ChemicalSchema.CAS_KEY: "67-56-1",
-    ChemicalSchema.CLASSIF_KEY: "Flammable Solvent",
+    ChemicalSchema.CLASSIF_KEY: "Flammable solvent",
+    ChemicalSchema.STORAGE_KEY: "Ambient",
     ChemicalSchema.SOURCE_KEY: "Purchased",
     ChemicalSchema.PURCH_FIELD_KEY: {
         ChemicalSchema.MANU_KEY: "Fisher Scientific",
@@ -27,6 +36,7 @@ valid_purchased_chemical_2 = {
     ChemicalSchema.NAME_KEY: "Water, Optima LC/MS Grade, Fisher Chemical",
     ChemicalSchema.CAS_KEY: "7732-18-5",
     ChemicalSchema.CLASSIF_KEY: "Water",
+    ChemicalSchema.STORAGE_KEY: "Ambient",
     ChemicalSchema.SOURCE_KEY: "Purchased",
     ChemicalSchema.PURCH_FIELD_KEY: {
         ChemicalSchema.MANU_KEY: "Fisher Scientific",
@@ -57,14 +67,15 @@ valid_prepared_chemical_2 = {}
 
 def test_get_chemical(client):
     chemical_address = "/chemicals"
-
+    lists_address = "/lists"
+    
     # POST valid lists and confirm success
-    post_list_response_1 = client.post(chemical_address, json=classifications)
-    post_list_response_2 = client.post(chemical_address, json=container_types)
-    post_list_response_3 = client.post(chemical_address, json=manufacturers)
-    post_list_response_4 = client.post(chemical_address, json=sources)
-    post_list_response_5 = client.post(chemical_address, json=storage_conditions)
-    post_list_response_6 = client.post(chemical_address, json=units)
+    post_list_response_1 = client.post(lists_address, json=classifications)
+    post_list_response_2 = client.post(lists_address, json=container_types)
+    post_list_response_3 = client.post(lists_address, json=manufacturers)
+    post_list_response_4 = client.post(lists_address, json=sources)
+    post_list_response_5 = client.post(lists_address, json=storage_conditions)
+    post_list_response_6 = client.post(lists_address, json=units)
 
     assert post_list_response_1.status_code == 201
     assert post_list_response_2.status_code == 201
@@ -89,9 +100,6 @@ def test_get_chemical(client):
     prepared_chem_id_1 = post_chem_response_3.json["inserted_id"]
     #prepared_chem_id_2 = post_chem_response_4.json["inserted_id"]
 
-
-
-
     # GET chemicals and confirm success
     get_reponse_1 = client.get(chemical_address + "/" + purchased_chem_id_1)
     get_reponse_2 = client.get(chemical_address + "/" + purchased_chem_id_2)
@@ -102,9 +110,6 @@ def test_get_chemical(client):
     assert get_reponse_2.status_code == 200
     assert get_reponse_3.status_code == 200
     #assert get_reponse_4.status_code == 200
-
-
-
 
     # Remove chemicals and confirm GET requests for removed chemicals return 404
     delete_reponse_1 = client.delete(chemical_address + "/" + purchased_chem_id_1)
@@ -127,10 +132,7 @@ def test_get_chemical(client):
     assert bad_get_reponse_3.status_code == 404
     #assert bad_get_reponse_4.status_code == 404
 
-
-
-
     # Confirm that GET requests with malformed ObjectId return 400
     invalid_id_response_1 = client.get(chemical_address + "/1")
 
-    assert invalid_id_response_1 == 400
+    assert invalid_id_response_1.status_code == 400
