@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime, timezone
+import copy
 
 """
 # Notes to a hiring manager if somehow I apply to a job before I finish:
@@ -439,6 +440,9 @@ as-is for now and note it in the documentation.
 a request for a prepared chemical that uses the replaced chemical in one of its components
 (This operation would remove the reference required for the new chemical, but it would pass
 the initial checks because it's an edge case).
+* Create class ApiErrorCodes to store error messages similar to ValidationErrorCodes
+    * Tests not asserting data["error"].startswith could then be made more robust
+* 
 """
 
 app = Flask(__name__)
@@ -609,7 +613,7 @@ class ListsSchema():
         LIST_NAME_KEY: str,
         LIST_ENT_KEY: [
             LIST_ENTRY_TYPE
-            ]
+        ]
     }  
     
     def __init__(self, data={}, lists_collection=None):
@@ -766,19 +770,19 @@ class ListsSchema():
             if request_method.upper() == "POST":
                 if ListsSchema.check_list_name_exist(
                     self._list_request_data[self.LIST_NAME_KEY]
-                    ):
+                ):
                     error_info = [
                         self._list_request_data[self.LIST_NAME_KEY],
                         self._errs.LIST_DUPLICATE
-                        ]
+                    ]
             elif request_method.upper() == "PUT":
-                if ListsSchema.check_list_name_exist(
+                if not ListsSchema.check_list_name_exist(
                     self._list_request_data[self.LIST_NAME_KEY]
-                    ):
+                ):
                     error_info = [
                         self._list_request_data[self.LIST_NAME_KEY],
                         self._errs.LIST_NOT_FOUND
-                        ]
+                    ]
 
         return error_info
 
@@ -787,9 +791,9 @@ class ListsSchema():
         record = {}
         entries = []
 
-        record[self.LIST_NAME_KEY] = self._list_request_data[self.LIST_NAME_KEY]
+        record[self.LIST_NAME_KEY] = str(self._list_request_data[self.LIST_NAME_KEY])
         for entry in self._list_request_data[self.LIST_ENT_KEY]:
-            entries.append(entry)
+            entries.append(str(entry))
         record[self.LIST_ENT_KEY] = entries
 
         return record
@@ -1138,21 +1142,22 @@ class ChemicalSchema():
 
             elif request_method.upper() == "PUT":
                 # Check to ensure the requested chemical exists to be updated
-                chemical_exist_query = {
-                    self.CHEM_ID_KEY: ObjectId(self.__chem_req_id)
-                }
-                
-                try: 
+                try:
+                    chemical_exist_query = {
+                        self.CHEM_ID_KEY: ObjectId(self.__chem_req_id)
+                    }
+
                     chem_data = self.find_chemical_form(
                         chemical_exist_query, self._chemicals_collection
                         )
+                    
+                    if chem_data == None:
+                        # Don't overwrite error code if _id key was not valid ObjectId
+                        error_info = [str(self.__chem_req_id), self._errs.CHEM_NOT_FOUND]
+        
                 except InvalidId:
                     error_info = [str(self.__chem_req_id), self._errs.INVALID_ID]
-                
-                if chem_data == None:
-                    # Don't overwrite error code if _id key was not valid ObjectId
-                    error_info = [str(self.__chem_req_id), self._errs.CHEM_NOT_FOUND]
-        
+                    
         return error_info
 
     def build_chem_record(self, chemical_id=ObjectId(), req_method=""):
@@ -1249,40 +1254,41 @@ class LotSchema(ChemicalSchema):
         # Currently handled above while I use MongoDB's "_id" as the primary key, but that won't always be the case.
         if "_id" in self._lot_request_data:
             self.__mongo_id = self._lot_request_data.pop("_id")
-
-        # Check for and return the related chemical form's data. This is cleaned in ChemicalSchema.__init__().
-        # The chemicals and lots collections are stored in the ChemicalSchema class, so they have to be passed
-        # using the parameter names in LotSchema.__init__() before they can be referenced using "self."
-        id_exist_query = {
-            self.CHEM_ID_KEY: ObjectId(self._lot_request_data[self.PARENT_CHEM_ID_KEY])
-            }
         
         try:
+            # Check for and return the related chemical form's data. This is cleaned in ChemicalSchema.__init__().
+            # The chemicals and lots collections are stored in the ChemicalSchema class, so they have to be passed
+            # using the parameter names in LotSchema.__init__() before they can be referenced using "self."
+            id_exist_query = {
+            self.CHEM_ID_KEY: ObjectId(self._lot_request_data[self.PARENT_CHEM_ID_KEY])
+            }
+
             chem_data = self.find_chemical_form(id_exist_query, chemicals_collection)
+
+            if not chem_data:
+                # If chemical not found, error returned at beginning of validation. Construction unaffected.
+                self._chem_id_error = [
+                    str(self._lot_request_data[self.PARENT_CHEM_ID_KEY]),
+                    self._errs.CHEM_NOT_FOUND
+                ]
+            
+            super().__init__(
+                chem_data,
+                chemicals_collection,
+                lots_collection
+            )
+            
+            # In a LotSchema instance, super().__init__() conveniently cleans up a chemical
+            # query result, but the ChemicalSchema name self._chem_data may be confusing.
+            # Rename to self._chem_data, which makes more sense in the context of
+            # LotSchema's use case.
+            self._chem_data = self._chem_request_data
+        
         except InvalidId:
             self._chem_id_error = [
                 str(self._lot_request_data[self.PARENT_CHEM_ID_KEY,]),
                 self._errs.INVALID_ID
-                ]
-        
-        if not chem_data:
-            # If chemical not found, error returned at beginning of validation. Construction unaffected.
-            self._chem_id_error = [
-                str(self._lot_request_data[self.PARENT_CHEM_ID_KEY]),
-                self._errs.CHEM_NOT_FOUND
-                ]
-        
-        super().__init__(
-            chem_data,
-            chemicals_collection,
-            lots_collection
-            )
-        
-        # In a LotSchema instance, super().__init__() conveniently cleans up a chemical
-        # query result, but the ChemicalSchema name self._chem_data may be confusing.
-        # Rename to self._chem_data, which makes more sense in the context of
-        # LotSchema's use case.
-        self._chem_data = self._chem_request_data
+            ]
 
     def validate_lot_form(self, request_method):
         """
@@ -1322,6 +1328,7 @@ class LotSchema(ChemicalSchema):
                     error_info = [extra_keys, self._errs.UNEXP_FIELD]
         
         # Validate fields in request
+        ## PARENT_CHEM_ID validated in __init__()
         if error_info[0] == None:
             if self.SOURCE_KEY == "Purchased":
                 for key in self.LOT_SCHEMA:
@@ -1362,38 +1369,38 @@ class LotSchema(ChemicalSchema):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.MISS_REQ_FIELD
-                                                ]
+                                            ]
                                             break
                                         elif self._check.miss_req_value(req_comp_dict[subkey]):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.MISS_REQ_VALUE
-                                                ]
+                                            ]
                                             break
                                         elif self._check.wrong_type(req_comp_dict[subkey], prep_comp_dict[subkey]):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.WRONG_TYPE
-                                                ]
+                                            ]
                                             break
                                     else:
                                         if self._check.miss_req_field(subkey, req_comp_dict):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.MISS_REQ_FIELD
-                                                ]
+                                            ]
                                             break
                                         elif self._check.miss_req_value(prep_comp_dict[subkey]):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.MISS_REQ_VALUE
-                                                ]
+                                            ]
                                             break
                                         elif self._check.wrong_type(req_comp_dict[subkey], prep_comp_dict[subkey]):
                                             error_info = [
                                                 f"{key}.Component #{comp_index + 1}.{subkey}",
                                                 self._errs.WRONG_TYPE
-                                                ]
+                                            ]
                                             break
                                         elif subkey == self.UNIT_KEY:
                                             if self._check.inval_list_entry(
@@ -1403,35 +1410,36 @@ class LotSchema(ChemicalSchema):
                                                 error_info = [
                                                     f"{key}.Component #{comp_index + 1}.{subkey}",
                                                     self._errs.INVAL_LIST_ENTRY
-                                                    ]
+                                                ]
                                                 break
                                         elif subkey == self.COMP_LOT_KEY:
                                             # Validate that requested component chemical has an existing lot record
                                             # available for use. These would be stored for later use when building lot
                                             # records, but any number of components could be added to a lot record request. Future upgrade?
-                                            lot_exist_query = {
-                                                self.LOT_ID_KEY: ObjectId(
-                                                    req_comp_dict[self.COMP_LOT_KEY]
+                                            try:
+                                                lot_exist_query = {
+                                                    self.LOT_ID_KEY: ObjectId(
+                                                        req_comp_dict[self.COMP_LOT_KEY]
                                                     )
                                                 }
-                                            
-                                            # Validate component's parent_chemical_id is a valid ObjectId() type
-                                            try:
+                                                
+                                                # Validate component's parent_chemical_id is a valid ObjectId() type
                                                 lot_data = self.find_lot_form(lot_exist_query)
+
+                                                if error_info[0] == None:
+                                                    if not lot_data:
+                                                        # Trigger error if no lot exists for requested component
+                                                        error_info = [
+                                                            f"{key}.Component #{comp_index + 1}.{subkey}",
+                                                            self._errs.LOT_NOT_FOUND
+                                                        ]
+                                                        break
+                                            
                                             except InvalidId:
                                                 error_info = [
                                                     f"{key}.Component #{comp_index + 1}.{subkey}",
                                                     self._errs.INVALID_ID
                                                 ]
-
-                                            if error_info[0] == None:
-                                                if not lot_data:
-                                                    # Trigger error if no lot exists for requested component
-                                                    error_info = [
-                                                        f"{key}.Component #{comp_index + 1}.{subkey}",
-                                                        self._errs.LOT_NOT_FOUND
-                                                        ]
-                                                    break
                                     
                                 if not error_info[0] == None:
                                     # This is in the event that inner loops found invalid data
@@ -1473,22 +1481,24 @@ class LotSchema(ChemicalSchema):
         if error_info[0] == None:        
             if request_method.upper() == "PUT":
                 # Check to ensure the requested lot exists to be updated
-                lot_exist_query = {
-                    self.LOT_ID_KEY: ObjectId(self.__lot_req_id)
-                }
-                
                 try:
+                    lot_exist_query = {
+                        self.LOT_ID_KEY: ObjectId(self.__lot_req_id)
+                    }
+
                     lot_data = self.find_lot_form(
                     lot_exist_query, self._lots_collection
                     )
+                        
+                    
+                    if lot_data == None:
+                        error_info = [
+                            str(self.__lot_req_id),
+                            self._errs.LOT_NOT_FOUND
+                            ]
+                        
                 except InvalidId:
                     error_info = [self.__lot_req_id, self._errs.INVALID_ID]
-                
-                if lot_data == None:
-                    error_info = [
-                        str(self.__lot_req_id),
-                        self._errs.LOT_NOT_FOUND
-                        ]
 
         return error_info
     
@@ -1603,12 +1613,16 @@ def get_all_chemicals():
 @app.route("/chemicals", methods=["POST"])
 def add_chemical():
     data = request.get_json()
-    new_chemical = ChemicalSchema(data, app.chemicals, app.lots)
 
     if not data:
         response = jsonify({"error": "Missing request body"}), 400
     else:
         # Validate data in request
+        new_chemical = ChemicalSchema(
+            copy.deepcopy(data),
+            app.chemicals,
+            app.lots
+        )
         form_val = new_chemical.validate_chemical_form(request.method)
 
         if form_val[1] == 0:
@@ -1645,12 +1659,22 @@ def get_chemical(chemical_id):
 @app.route("/chemicals/<chemical_id>", methods=["PUT"])
 def update_chemical(chemical_id):
     data = request.get_json()
-    updated_chemical = ChemicalSchema(data, app.chemicals, app.lots)
     
-    if not data:
-        response = jsonify({"error": "Missing request body"}), 400
+    if not ChemicalSchema.CHEM_ID_KEY in data:
+        response = jsonify({
+            "error": f"Request body missing primary key: {ChemicalSchema.CHEM_ID_KEY}"
+        }), 422
+    elif not data[ChemicalSchema.CHEM_ID_KEY] == chemical_id:
+        response = jsonify({"error": "Request body primary key does not match address " \
+            f"<chemical_id>: {data[ChemicalSchema.CHEM_ID_KEY]}, {chemical_id}"}), 422
+            
     else:
         # Validate data in request
+        updated_chemical = ChemicalSchema(
+            copy.deepcopy(data),
+            app.chemicals,
+            app.lots
+        )
         form_val = updated_chemical.validate_chemical_form(request.method)
 
         if form_val[1] == 0:
@@ -1721,12 +1745,16 @@ def get_all_lots():
 @app.route("/lots", methods=["POST"])
 def add_lot():
     data = request.get_json()
-    new_lot = LotSchema(data, app.chemicals, app.lots)
 
     if not data:
         response = jsonify({"error": "Missing request body"}), 400
     else:
         # Validate data in request
+        new_lot = LotSchema(
+            copy.deepcopy(data),
+            app.chemicals,
+            app.lots
+        )
         form_val = new_lot.validate_lot_form(request.method)
 
         if form_val[1] == 0:
@@ -1775,12 +1803,25 @@ def get_lot(lot_id):
 @app.route("/lots/<lot_id>", methods=["PUT"])
 def update_lot(lot_id):
     data = request.get_json()
-    updated_lot = LotSchema(data, app.chemicals, app.lots)
 
-    if not data:
-        response = jsonify({"error": "Missing request body"}), 400
+    if not LotSchema.LOT_ID_KEY in data:
+        response = jsonify({
+            "error": f"Request body missing primary key: {LotSchema.LOT_ID_KEY}"
+        }), 422
+    elif not data[LotSchema.LOT_ID_KEY] == lot_id:
+        response = jsonify({
+            "error": f"""
+            Request body primary key does not match address <lot_id>:
+            {data[LotSchema.LOT_ID_KEY]}, {lot_id}
+            """
+        }), 422
     else:
         # Validate data in request
+        updated_lot = LotSchema(
+            copy.deepcopy(data),
+            app.chemicals,
+            app.lots
+        )
         form_val = updated_lot.validate_lot_form(request.method)
 
         if form_val[1] == 0:
@@ -1793,6 +1834,7 @@ def update_lot(lot_id):
                 )
 
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
+            
             except InvalidId:
                 response = jsonify({"error": "Invalid ID format"}), 400
         else:
@@ -1823,7 +1865,7 @@ def get_all_lists():
     all_lists = list(app.lists.find(
         {},
         {"_id": 0}
-        ))
+    ))
     
     response = jsonify(all_lists), 200
 
@@ -1831,14 +1873,17 @@ def get_all_lists():
 
 # Add a new list document according to the database schema
 @app.route("/lists", methods=["POST"])
-def create_list():
+def add_list():
     data = request.get_json()
-    new_list = ListsSchema(data, app.lists)
 
     if not data:
         response = jsonify({"error": "Missing request body"}), 400
     else:
         # Validate data in request
+        new_list = ListsSchema(
+            copy.deepcopy(data),
+            app.lists
+        )
         form_val = new_list.validate_list_form(request.method)
         
         if form_val[1] == 0:
@@ -1858,7 +1903,7 @@ def get_list(list_name):
     result = app.lists.find_one(
         {ListsSchema.LIST_NAME_KEY: list_name},
         {ListsSchema.LIST_ID_KEY: 0}
-        )
+    )
     
     if not result:
         response = jsonify({"error": "List not found"}), 404
@@ -1871,12 +1916,24 @@ def get_list(list_name):
 @app.route("/lists/<list_name>", methods=["PUT"])
 def update_list(list_name):
     data = request.get_json()
-    updated_list = ListsSchema(data, app.lists)
 
-    if not data:
-        response = jsonify({"error": "Missing request body"}), 400
+    if not ListsSchema.LIST_NAME_KEY in data:
+        response = jsonify({
+            "error": f"Request body missing primary key: {ListsSchema.LIST_NAME_KEY}"
+        }), 422
+    elif not data[ListsSchema.LIST_NAME_KEY] == list_name:
+        response = jsonify({
+            "error": f"""
+            Request body primary key does not match address <chemical_id>:
+            {data[ListsSchema.LIST_NAME_KEY]}, {list_name}
+            """
+        }), 422
     else:
         # Validate data in request
+        updated_list = ListsSchema(
+            copy.deepcopy(data),
+            app.lists
+        )
         form_val = updated_list.validate_list_form(request.method)
 
         if form_val[1] == 0:
