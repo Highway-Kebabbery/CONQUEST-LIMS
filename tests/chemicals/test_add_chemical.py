@@ -649,7 +649,7 @@ invalid_chemicals = [
 
 chemicals_address = "/chemicals"
 
-def test_add_chemicals(
+def test_add_chemical(
         client,
         post_all_lists,
         valid_purchased_chemical_1,
@@ -760,7 +760,7 @@ def test_add_chemicals(
 # Remaining 422 status code testing:
 ## Missing fields, missing values, wrong types, and invalid list entries
 @pytest.mark.parametrize("payload, expected_error_prefix", invalid_chemicals)
-def test_invalid_chemicals(client, payload, expected_error_prefix, post_all_lists):
+def test_add_invalid_chemicals(client, payload, expected_error_prefix, post_all_lists):
     response = client.post(chemicals_address, json=copy.deepcopy(payload))
     data = response.get_json()
 

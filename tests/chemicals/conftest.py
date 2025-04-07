@@ -64,7 +64,7 @@ import sys
 import os
 
 # Had to explicitly add root to sys.path for pytest to find the Flask app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import pytest, copy, mongomock
 from flask import Flask
@@ -218,66 +218,66 @@ def valid_prepared_chemical_2():
 @pytest.fixture()
 def purch_chem_1_extra_field(valid_purchased_chemical_1):
     # Unexpected Field
-    val_purch_1_container_extra_field = copy.deepcopy(valid_purchased_chemical_1)
-    val_purch_1_container_extra_field["foo"] = "bar"
-    val_purch_1_container_extra_field["fizz"] = "buzz"
-    return val_purch_1_container_extra_field
+    purch_chem_1_extra_field = copy.deepcopy(valid_purchased_chemical_1)
+    purch_chem_1_extra_field["foo"] = "bar"
+    purch_chem_1_extra_field["fizz"] = "buzz"
+    return purch_chem_1_extra_field
 
 @pytest.fixture()
 def purch_chem_2_extra_field(valid_purchased_chemical_2):
     # Unexpected Field
-    val_purch_2_container_extra_field = copy.deepcopy(valid_purchased_chemical_2)
-    val_purch_2_container_extra_field["foo"] = "bar"
-    val_purch_2_container_extra_field["fizz"] = "buzz"
-    return val_purch_2_container_extra_field
+    purch_chem_2_extra_field = copy.deepcopy(valid_purchased_chemical_2)
+    purch_chem_2_extra_field["foo"] = "bar"
+    purch_chem_2_extra_field["fizz"] = "buzz"
+    return purch_chem_2_extra_field
 
 @pytest.fixture()
 def prep_chem_1_extra_field(valid_prepared_chemical_1):
     # Unexpected Field
-    val_prep_1_container_extra_field = copy.deepcopy(valid_prepared_chemical_1)
-    val_prep_1_container_extra_field["foo"] = "bar"
-    val_prep_1_container_extra_field["fizz"] = "buzz"
-    return val_prep_1_container_extra_field
+    prep_chem_1_extra_field = copy.deepcopy(valid_prepared_chemical_1)
+    prep_chem_1_extra_field["foo"] = "bar"
+    prep_chem_1_extra_field["fizz"] = "buzz"
+    return prep_chem_1_extra_field
 
 @pytest.fixture()
 def prep_chem_2_extra_field(valid_prepared_chemical_2):
     # Unexpected Field
-    val_purch_1_container_extra_field = copy.deepcopy(valid_prepared_chemical_2)
-    val_purch_1_container_extra_field["foo"] = "bar"
-    val_purch_1_container_extra_field["fizz"] = "buzz"
-    return val_purch_1_container_extra_field
+    prep_chem_2_extra_field = copy.deepcopy(valid_prepared_chemical_2)
+    prep_chem_2_extra_field["foo"] = "bar"
+    prep_chem_2_extra_field["fizz"] = "buzz"
+    return prep_chem_2_extra_field
     
 @pytest.fixture()
 def purch_chem_1_miss_field_type(valid_purchased_chemical_1):
     # Do two error return the first-encountered error as expected?
-    val_purch_1_miss_field_type = copy.deepcopy(valid_purchased_chemical_1)
-    val_purch_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    val_purch_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return val_purch_1_miss_field_type
+    purch_chem_1_miss_field_type = copy.deepcopy(valid_purchased_chemical_1)
+    purch_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    purch_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
+    return purch_chem_1_miss_field_type
 
 @pytest.fixture()
-def prep_chem_2_miss_field_type(valid_purchased_chemical_2):
+def purch_chem_2_miss_field_type(valid_purchased_chemical_2):
     # Do two error return the first-encountered error as expected?
-    val_purch_2_miss_field_type = copy.deepcopy(valid_purchased_chemical_2)
-    val_purch_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    val_purch_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return val_purch_2_miss_field_type
+    purch_chem_2_miss_field_type = copy.deepcopy(valid_purchased_chemical_2)
+    purch_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    purch_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
+    return purch_chem_2_miss_field_type
 
 @pytest.fixture()
-def purch_chem_1_miss_field_type(valid_prepared_chemical_1):
+def prep_chem_1_miss_field_type(valid_prepared_chemical_1):
     # Do two error return the first-encountered error as expected?
-    val_prep_1_miss_field_type = copy.deepcopy(valid_prepared_chemical_1)
-    val_prep_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    val_prep_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return val_prep_1_miss_field_type
+    prep_chem_1_miss_field_type = copy.deepcopy(valid_prepared_chemical_1)
+    prep_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    prep_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
+    return prep_chem_1_miss_field_type
 
 @pytest.fixture()
-def purch_chem_2_miss_field_type(valid_prepared_chemical_2):
+def prep_chem_2_miss_field_type(valid_prepared_chemical_2):
     # Do two error return the first-encountered error as expected?
-    val_prep_2_miss_field_type = copy.deepcopy(valid_prepared_chemical_2)
-    val_prep_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    val_prep_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return val_prep_2_miss_field_type
+    prep_chem_2_miss_field_type = copy.deepcopy(valid_prepared_chemical_2)
+    prep_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    prep_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
+    return prep_chem_2_miss_field_type
 
 
 
