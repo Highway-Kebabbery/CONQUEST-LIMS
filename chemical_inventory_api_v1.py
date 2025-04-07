@@ -387,6 +387,7 @@ be for something I actually use and/or sell.
     and added automatically) as well as dynamic data related to that lot. This 
     allows for fewer operation when requesting to GET /lots, which would be the 
     most frequent operation.
+* Do not attempt to create a lot using another prepared lot.
 
 
     
@@ -434,6 +435,10 @@ as-is for now and note it in the documentation.
     structure with the only difference being the key names for these fields and where
     they're pulled from. Expect to insert "Prepared_Fields": {"Method_Step_Reference": <value>}
     as just "Method_Step_Reference": <value> on the same level as the other component keys.
+* Note that system does not currently reject requests to update (replace) a chemical with 
+a request for a prepared chemical that uses the replaced chemical in one of its components
+(This operation would remove the reference required for the new chemical, but it would pass
+the initial checks because it's an edge case).
 """
 
 app = Flask(__name__)
@@ -1641,7 +1646,7 @@ def get_chemical(chemical_id):
 def update_chemical(chemical_id):
     data = request.get_json()
     updated_chemical = ChemicalSchema(data, app.chemicals, app.lots)
-
+    
     if not data:
         response = jsonify({"error": "Missing request body"}), 400
     else:
