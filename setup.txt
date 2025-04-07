@@ -77,3 +77,4 @@ list setup:
 I learned many things. one is the use of deepcopy to keep multiple references to the same mutable
 object from ruining it between TESTS
 I learned that it's easy to forget the method parentheses when calling a class method that only serves to return a value from another class defined below the first class =__=
+
