@@ -115,10 +115,9 @@ General schema:
         "Expiry_Date": str,       # Required. Must be a string in ISO 8601 format.
         "Empty_Date": str,        # Optional (use of field would be proceduralized by lab SOP). Must be a string in ISO 8601 format.
         "Components": [           # Required. Prepared lots require >= 1 components.
-            # Purchased chemical/lot components
+            # Purchased chemical/lot components        # Purchased and prepared lots currently have redundant requests, but they are left separate in the event that they ever digress.
             {
                 "lot_id": str,                         # Required. String must be convertable to a valid ObjectId(). Links to lots._id. Must be the "_id" of an existing lots collection lot.
-                "Manufacturer_Lot_Batch_Number": str,  # Required.
                 "Amount": [int, float],                # Required. Either type is acceptable.
                 "Units": str                           # Required. This value must come from the lists.{"Name": "Units"} list in the database depending on whether the lists collection is in service yet.
             },
@@ -1246,12 +1245,14 @@ class LotSchema(ChemicalSchema):
     COMPONENTS_KEY = "Components"
 
     # Per component added to prepared material.
+    # Prepared and purchased component schema are currently redundant, but are left
+    # split out to aid potential future updates where they diverge.
     PURCH_COMP_SCHEMA = {
         COMP_LOT_KEY: str,
         # ChemicalSchema.NAME_KEY added at time of lot record construction
         # ChemicalSchema.MANU_KEY added at time of lot record construction
         # ChemicalSchema.MANU_PN_KEY added at time of lot record construction
-        MANU_LOT_KEY: str,
+        # ChemicalSchema.MANU_LOT_KEY added at time of lot record construction
         ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY],    # Calculations with amounts must be performed with Decimal()
         ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY]
         # EXPIRY_KEY added at time of lot record construction
