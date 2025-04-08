@@ -462,7 +462,8 @@ the initial checks because it's an edge case).
     * Tests not asserting data["error"].startswith could then be made more robust
 * Add an optional "Comments" field to all logged lots and chemicals. Must be a string. Max length... 256 chars?
     * This would allow yo uto log a lot of the water dispenser and note the expiry date is the "PM Due Date."
-* 
+* I want to enter int(0) for "Amount" for the water system lots, but it fails (as it should) for being empty.
+    * Implement a workaround in the case of instruments? This is a super small edge case.
 """
 
 app = Flask(__name__)
@@ -715,7 +716,7 @@ class ListsSchema():
         sources = app.lists.find_one(
             {ListsSchema.LIST_NAME_KEY: ListsSchema.SOURCES_LIST_KEY()}
         )
-        
+
         return sources[ListsSchema.LIST_ENT_KEY]
     
     @property
@@ -1293,7 +1294,7 @@ class LotSchema(ChemicalSchema):
         self._lot_request_data = data
 
         # Used to short-circuit validation if chemical not found
-        self._chem_id_error = []    # Field name, ValidationErrorCodes error code
+        self._chem_id_error = [None, 0]    # Field name, ValidationErrorCodes error code
 
         # Pop _id to strip _lot_request_data for validation and build.
         if self.LOT_ID_KEY in self._lot_request_data:
@@ -1343,6 +1344,7 @@ class LotSchema(ChemicalSchema):
         
         See note in validate_chemical_form for future upgrade idea.
         """
+        # Now is the time to validate error encountered in LotSchema.__init__()
         error_info = self._chem_id_error
 
         # Check for extra keys in request
@@ -1351,11 +1353,11 @@ class LotSchema(ChemicalSchema):
                 self._lot_request_data
             )
 
-            if self._chem_data[self.SOURCE_KEY] == self.PURCH_FIELD_KEY:
+            if self._chem_data[self.SOURCE_KEY] == "Purchased":
                 schema_keys = HelperFunctions.get_schema_keys(
                     self.LOT_SCHEMA[self.PURCH_FIELD_KEY]
                 )
-            else:
+            elif self._chem_data[self.SOURCE_KEY] == "Prepared":
                 schema_keys = HelperFunctions.get_schema_keys(
                     self.LOT_SCHEMA[self.PREP_FIELD_KEY]
                 )

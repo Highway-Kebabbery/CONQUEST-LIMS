@@ -155,8 +155,8 @@ def post_all_lists(client):
 
 
 @pytest.fixture()
-def val_purch_chems():
-    val_purch_chem_2 = {
+def val_purch_chems(client, post_all_lists):
+    val_purch_chem_1 = {
         ChemicalSchema.NAME_KEY: "Milli-Q IQ 7000 Ultrapure Water Purification System. IPN: WAT-GNV-001",
         ChemicalSchema.CAS_KEY: "7732-18-5",
         ChemicalSchema.CLASSIF_KEY: "Water Dispenser",
@@ -165,13 +165,13 @@ def val_purch_chems():
         ChemicalSchema.PURCH_FIELD_KEY: {
             ChemicalSchema.MANU_KEY: "Milli-Q",
             ChemicalSchema.MANU_PN_KEY: "ZIQ7000T0C",
-            ChemicalSchema.AMT_KEY: 0,
+            ChemicalSchema.AMT_KEY: 999999,
             ChemicalSchema.UNIT_KEY: "N/A",
             ChemicalSchema.CONT_TYPE_KEY: "N/A"
         }
     }
     
-    val_purch_chem_1 = {
+    val_purch_chem_2 = {
         ChemicalSchema.NAME_KEY: "Phosphoric acid, J.T. Baker",
         ChemicalSchema.CAS_KEY: "7664-38-2",
         ChemicalSchema.CLASSIF_KEY: "Weak acid",
@@ -189,8 +189,11 @@ def val_purch_chems():
     response_1 = client.post(chemicals_address, json=val_purch_chem_1)
     response_2 = client.post(chemicals_address, json=val_purch_chem_2)
 
-    id_1 = response_1.get_json()[ChemicalSchema.CHEM_ID_KEY]
-    id_2 = response_2.get_json()[ChemicalSchema.CHEM_ID_KEY]
+    assert response_1.status_code == 201
+    assert response_2.status_code == 201
+
+    id_1 = response_1.get_json()["inserted_id"]
+    id_2 = response_2.get_json()["inserted_id"]
 
     return {
         "val_purch_chem_1": {
@@ -202,7 +205,7 @@ def val_purch_chems():
     }
 
 @pytest.fixture()
-def val_prep_chems():
+def val_prep_chems(client, post_all_lists):
     # Prepared chemical using only purchased components (water dispenser)
     val_prep_chem_1 = {
         ChemicalSchema.NAME_KEY: "Water, In-House",
@@ -230,8 +233,11 @@ def val_prep_chems():
     response_1 = client.post(chemicals_address, json=val_prep_chem_1)
     response_2 = client.post(chemicals_address, json=val_prep_chem_2)
 
-    id_1 = response_1.get_json()[ChemicalSchema.CHEM_ID_KEY]
-    id_2 = response_2.get_json()[ChemicalSchema.CHEM_ID_KEY]
+    assert response_1.status_code == 201
+    assert response_2.status_code == 201
+
+    id_1 = response_1.get_json()["inserted_id"]
+    id_2 = response_2.get_json()["inserted_id"]
 
     return {
         "val_prep_chem_1": {
@@ -245,8 +251,8 @@ def val_prep_chems():
 @pytest.fixture()
 def val_purch_lots(val_purch_chems):
     # Returns two purchased lot objects
-    val_purch_chem_milliq = copy.deepcopy(val_purch_chems[0])
-    val_purch_chem_h3po4 = copy.deepcopy(val_purch_chems[1])
+    val_purch_chem_milliq = copy.deepcopy(val_purch_chems["val_purch_chem_1"])
+    val_purch_chem_h3po4 = copy.deepcopy(val_purch_chems["val_purch_chem_2"])
     
     val_purch_chem_milliq_id = val_purch_chem_milliq[ChemicalSchema.CHEM_ID_KEY]
     val_purch_chem_h3po4_id = val_purch_chem_h3po4[ChemicalSchema.CHEM_ID_KEY]
@@ -271,7 +277,10 @@ def val_purch_lots(val_purch_chems):
         LotSchema.EMPTY_KEY: None,
     }
 
-    return val_purch_lot_1, val_purch_lot_2
+    return {
+        "val_purch_lot_1": val_purch_lot_1,
+        "val_purch_lot_2": val_purch_lot_2
+    }
 
 @pytest.fixture()
 def val_prep_lots(val_prep_chems, val_purch_lots):
@@ -289,8 +298,8 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
     val_prep_lot_2["Components"][1] corresponds to val_purch_lot 2
     """
     # Assign parent chemical IDs (PARENT_CHEM_ID) for the prepared lots themselves
-    val_prep_chem_in_house_water = copy.deepcopy(val_prep_chems[0])
-    val_prep_chem_mpa = copy.deepcopy(val_prep_chems[1])
+    val_prep_chem_in_house_water = copy.deepcopy(val_prep_chems["val_prep_chem_1"])
+    val_prep_chem_mpa = copy.deepcopy(val_prep_chems["val_prep_chem_2"])
 
     val_prep_chem_in_house_water_id = val_prep_chem_in_house_water[ChemicalSchema.CHEM_ID_KEY]
     val_prep_chem_mpa_id = val_prep_chem_mpa[ChemicalSchema.CHEM_ID_KEY]
@@ -306,11 +315,11 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
         LotSchema.CONT_TYPE_KEY: "N/A",
         LotSchema.PREP_DATE_KEY: "2025-04-08T14:30:00-04:00",
         LotSchema.EXPIRY_KEY: "2025-05-08T14:30:00-04:00",
-        LotSchema.EMPTY_KEY: str,
+        LotSchema.EMPTY_KEY: None,
         LotSchema.COMPONENTS_KEY: [
             {
                 LotSchema.COMP_LOT_KEY: None,   # MilliQ
-                LotSchema.AMT_KEY: 0,
+                LotSchema.AMT_KEY: 999999,
                 LotSchema.UNIT_KEY: "N/A"
             }
         ]
@@ -339,7 +348,10 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
         ]
     }
 
-    return val_prep_lot_1, val_prep_lot_2
+    return {
+        "val_prep_lot_1": val_prep_lot_1,
+        "val_prep_lot_2": val_prep_lot_2
+    }
 
 
 
