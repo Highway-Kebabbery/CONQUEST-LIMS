@@ -79,3 +79,8 @@ object from ruining it between TESTS
 I learned that it's easy to forget the method parentheses when calling a class method that only serves to return a value from another class defined below the first class =__=
 
 Note that it includes full end-to-end test suite
+
+Note that a lot of the indentation ended up weird... I probably need to configure VS Code.
+    In any case, Writing the entire project was exhausting and I'll come back to clean up
+    formatting later.
+
