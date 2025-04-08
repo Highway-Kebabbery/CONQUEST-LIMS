@@ -80,10 +80,13 @@ all valid chemical configurations.
 *
 *
 *
-*
-* DON'T FORGET TO ADD TESTING THAT CHEMICAL AGGREGATE FIELDS WORK AFTER GETTING THE LOTS END POINTS WORKING
-* Test after lots is functional that aggregate values don't include expired lots
-* ... I'll probably need the same conftest.py for chemicals and lots
+**************************************************************************************
+All notes above need to be.... checked once lot fixtures are built. With the main fixtures
+in place I can begin to put together the finer details of checking lots.
+
+### Strictly Lot-Related testing notes:
+
+    * Lots used for happy path testing confirm that null empty dates work
 
 """
 
@@ -96,8 +99,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 import pytest, copy, mongomock
 from flask import Flask
 from pymongo import MongoClient
-from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema, ValidationErrorCodes
+from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema, LotSchema, ValidationErrorCodes
 from chemical_inventory_api_v1 import app as flask_app
+
+chemicals_address = "/chemicals"
+lots_address = "/lots"
+lists_address = "/lists"
 
 @pytest.fixture()
 def app():
@@ -121,10 +128,8 @@ def app():
 def client(app):
     return app.test_client()
 
-@pytest.fixture
+@pytest.fixture()
 def post_all_lists(client):
-    lists_address = "/lists"
-    
     # Validated lists
     classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
     container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial", "N/A"]}
@@ -150,46 +155,8 @@ def post_all_lists(client):
 
 
 @pytest.fixture()
-def valid_purchased_chemical_1():
-    valid_purchased_chemical_1 = {
-        ChemicalSchema.NAME_KEY: "Methanol (Certified ACS), Fisher Chemical",
-        ChemicalSchema.CAS_KEY: "67-56-1",
-        ChemicalSchema.CLASSIF_KEY: "Flammable solvent",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "A412-4",
-            ChemicalSchema.AMT_KEY: 4,
-            ChemicalSchema.UNIT_KEY: "L",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
-    return valid_purchased_chemical_1
-
-@pytest.fixture()
-def valid_purchased_chemical_2():
-    valid_purchased_chemical_2 = {
-        ChemicalSchema.NAME_KEY: "Water, Optima LC/MS Grade, Fisher Chemical",
-        ChemicalSchema.CAS_KEY: "7732-18-5",
-        ChemicalSchema.CLASSIF_KEY: "Water",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "W64",
-            ChemicalSchema.AMT_KEY: 4,
-            ChemicalSchema.UNIT_KEY: "L",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
-    return valid_purchased_chemical_2
-
-@pytest.fixture()
-def valid_purchased_chemical_3():
-    valid_purchased_chemical_3 = {
+def val_purch_chems():
+    val_purch_chem_1 = {
         ChemicalSchema.NAME_KEY: "Phosphoric acid, J.T. Baker",
         ChemicalSchema.CAS_KEY: "7664-38-2",
         ChemicalSchema.CLASSIF_KEY: "Weak acid",
@@ -204,11 +171,52 @@ def valid_purchased_chemical_3():
         }
     }
 
-    return valid_purchased_chemical_3
+    val_purch_chem_2 = {
+        ChemicalSchema.NAME_KEY: "Milli-Q IQ 7000 Ultrapure Water Purification System. IPN: WAT-GNV-001",
+        ChemicalSchema.CAS_KEY: "7732-18-5",
+        ChemicalSchema.CLASSIF_KEY: "Water Dispenser",
+        ChemicalSchema.STORAGE_KEY: "Ambient",
+        ChemicalSchema.SOURCE_KEY: "Purchased",
+        ChemicalSchema.PURCH_FIELD_KEY: {
+            ChemicalSchema.MANU_KEY: "Milli-Q",
+            ChemicalSchema.MANU_PN_KEY: "ZIQ7000T0C",
+            ChemicalSchema.AMT_KEY: 0,
+            ChemicalSchema.UNIT_KEY: "N/A",
+            ChemicalSchema.CONT_TYPE_KEY: "N/A"
+        }
+    }
+
+    response_1 = client.post(chemicals_address, json=val_purch_chem_1)
+    response_2 = client.post(chemicals_address, json=val_purch_chem_2)
+
+    id_1 = response_1.get_json()[ChemicalSchema.CHEM_ID_KEY]
+    id_2 = response_2.get_json()[ChemicalSchema.CHEM_ID_KEY]
+
+    return {
+        "val_purch_chem_1": {
+            **val_purch_chem_1, ChemicalSchema.CHEM_ID_KEY: id_1
+        },
+        "val_purch_chem_2": {
+            **val_purch_chem_2, ChemicalSchema.CHEM_ID_KEY: id_2
+        }
+    }
 
 @pytest.fixture()
-def valid_prepared_chemical_1():
-    valid_prepared_chemical_1 = {
+def val_prep_chems():
+    # Prepared chemical using only purchased components (water dispenser)
+    val_prep_chem_1 = {
+        ChemicalSchema.NAME_KEY: "Water, In-House",
+        ChemicalSchema.CAS_KEY: "7732-18-5",
+        ChemicalSchema.CLASSIF_KEY: "Water",
+        ChemicalSchema.STORAGE_KEY: "Ambient",
+        ChemicalSchema.SOURCE_KEY: "Prepared",
+        ChemicalSchema.PREP_FIELD_KEY: {
+            ChemicalSchema.METH_REF_KEY: "Water Dispenser: WAT-GNV-001"
+            }
+    }
+
+    # Prepared chemical using a prepared component
+    val_prep_chem_2 = {
         ChemicalSchema.NAME_KEY: "Mobile Phase A: Water, 0.1 % Phosphoric Acid",
         ChemicalSchema.CAS_KEY: "7732-18-5, 7664-38-2",
         ChemicalSchema.CLASSIF_KEY: "Mobile phase",
@@ -219,84 +227,235 @@ def valid_prepared_chemical_1():
             }
     }
 
-    return valid_prepared_chemical_1
+    response_1 = client.post(chemicals_address, json=val_prep_chem_1)
+    response_2 = client.post(chemicals_address, json=val_prep_chem_2)
 
-@pytest.fixture()
-def valid_prepared_chemical_2():
-    # Prepared chemical using only purchased components
-    valid_prepared_chemical_2 = {
-        ChemicalSchema.NAME_KEY: "Mobile Phase B: 40% Methanol in Water, 0.1 % Phosphoric Acid",
-        ChemicalSchema.CAS_KEY: "67-56-1, 7732-18-5",
-        ChemicalSchema.CLASSIF_KEY: "Mobile phase",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Prepared",
-        ChemicalSchema.PREP_FIELD_KEY: {
-            ChemicalSchema.METH_REF_KEY: "SOP-00123.4.3.ii"
-            }
+    id_1 = response_1.get_json()[ChemicalSchema.CHEM_ID_KEY]
+    id_2 = response_2.get_json()[ChemicalSchema.CHEM_ID_KEY]
+
+    return {
+        "val_prep_chem_1": {
+            **val_prep_chem_1, ChemicalSchema.CHEM_ID_KEY: id_1
+        },
+        "val_prep_chem_2": {
+            **val_prep_chem_2, ChemicalSchema.CHEM_ID_KEY: id_2
+        }
     }
 
-    return valid_prepared_chemical_2
+@pytest.fixture()
+def val_purch_lots(val_purch_chems):
+    val_purch_h3po4 = copy.deepcopy(val_purch_chems[0])
+    val_purch_milliq = copy.deepcopy(val_purch_chems[1])
+
+    val_purch_h3po4_id = val_purch_h3po4[ChemicalSchema.CHEM_ID_KEY]
+    val_purch_milliq_id = val_purch_milliq[ChemicalSchema.CHEM_ID_KEY]
+
+    val_purch_lot_1 = {
+        LotSchema.PARENT_CHEM_ID_KEY: val_purch_meoh_id,
+        LotSchema.MANU_LOT_KEY: "00142J678F",
+        LotSchema.OPEN_KEY: "2025-04-06T14:30:00-04:00",
+        LotSchema.EXPIRY_KEY: "2028-04-06T14:30:00-04:00",
+        LotSchema.EMPTY_KEY: str,
+    }
+
+    val_purch_lot_2 = {
+        LotSchema.PARENT_CHEM_ID_KEY: str,
+        LotSchema.MANU_LOT_KEY: str,
+        LotSchema.OPEN_KEY: str,
+        LotSchema.EXPIRY_KEY: str,
+        LotSchema.EMPTY_KEY: str,
+    }
+
+    response_1 = client.post(lots_address, json=val_purch_lot_1)
+    response_2 = client.post(lots_address, json=val_purch_lot_2)
+
+    id_1 = response_1.get_json()[LotSchema.CHEM_ID_KEY]
+    id_2 = response_2.get_json()[LotSchema.CHEM_ID_KEY]
+
+    return {
+        "val_purch_lot_1": {
+            **val_purch_lot_1, LotSchema.CHEM_ID_KEY: id_1
+        },
+        "val_purch_lot_2": {
+            **val_purch_lot_2, LotSchema.CHEM_ID_KEY: id_2
+        }
+    }
 
 @pytest.fixture()
-def purch_chem_1_extra_field(valid_purchased_chemical_1):
+def val_prep_lots(val_prep_chems):
+    
+    val_prep_in_house_water = copy.deepcopy(val_prep_chems[0])
+    val_prep_mpa = copy.deepcopy(val_prep_chems[1])
+
+    val_prep_in_house_water_id = val_prep_in_house_water[ChemicalSchema.CHEM_ID_KEY]
+    val_prep_mpa_id = val_prep_mpa[ChemicalSchema.CHEM_ID_KEY]
+
+    # Prepared lot using a purchased component
+    val_prep_lot_1 = {
+        LotSchema.PARENT_CHEM_ID_KEY: str,
+        LotSchema.AMT_KEY: [int, float],
+        LotSchema.UNIT_KEY: str,
+        LotSchema.CONT_TYPE_KEY: str,
+        LotSchema.PREP_DATE_KEY: str,
+        LotSchema.EXPIRY_KEY: str,
+        LotSchema.EMPTY_KEY: str,
+        LotSchema.COMPONENTS_KEY: [
+            {
+                LotSchema.COMP_LOT_KEY: str,
+                LotSchema.AMT_KEY: [int, float],
+                LotSchema.UNIT_KEY: str
+            }
+        ]
+    }
+
+    # Prepared lot using both purchased and prepared components
+    val_prep_lot_2 = {
+        LotSchema.PARENT_CHEM_ID_KEY: str,
+        LotSchema.AMT_KEY: [int, float],
+        LotSchema.UNIT_KEY: str,
+        LotSchema.CONT_TYPE_KEY: str,
+        LotSchema.PREP_DATE_KEY: str,
+        LotSchema.EXPIRY_KEY: str,
+        LotSchema.EMPTY_KEY: str,
+        LotSchema.COMPONENTS_KEY: [
+            {
+                LotSchema.COMP_LOT_KEY: str,
+                LotSchema.AMT_KEY: [int, float],
+                LotSchema.UNIT_KEY: str
+            }
+        ]
+    }
+
+    response_1 = client.post(lots_address, json=val_prep_lot_1)
+    response_2 = client.post(lots_address, json=val_prep_lot_2)
+
+    id_1 = response_1.get_json()[LotSchema.CHEM_ID_KEY]
+    id_2 = response_2.get_json()[LotSchema.CHEM_ID_KEY]
+
+    return {
+        "val_prep_lot_1": {
+            **val_prep_lot_1, LotSchema.CHEM_ID_KEY: id_1
+        },
+        "val_prep_lot_2": {
+            **val_prep_lot_2, LotSchema.CHEM_ID_KEY: id_2
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##############RRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# Haven't thought about anything below this line yet.
+
+
+
+
+
+@pytest.fixture()
+def purch_chem_1_extra_field(val_purch_chem_1):
     # Unexpected Field
-    purch_chem_1_extra_field = copy.deepcopy(valid_purchased_chemical_1)
+    purch_chem_1_extra_field = copy.deepcopy(val_purch_chem_1)
     purch_chem_1_extra_field["foo"] = "bar"
     purch_chem_1_extra_field["fizz"] = "buzz"
     return purch_chem_1_extra_field
 
 @pytest.fixture()
-def purch_chem_2_extra_field(valid_purchased_chemical_2):
+def purch_chem_2_extra_field(val_purch_chem_2):
     # Unexpected Field
-    purch_chem_2_extra_field = copy.deepcopy(valid_purchased_chemical_2)
+    purch_chem_2_extra_field = copy.deepcopy(val_purch_chem_2)
     purch_chem_2_extra_field["foo"] = "bar"
     purch_chem_2_extra_field["fizz"] = "buzz"
     return purch_chem_2_extra_field
 
 @pytest.fixture()
-def prep_chem_1_extra_field(valid_prepared_chemical_1):
+def prep_chem_1_extra_field(val_prep_chem_1):
     # Unexpected Field
-    prep_chem_1_extra_field = copy.deepcopy(valid_prepared_chemical_1)
+    prep_chem_1_extra_field = copy.deepcopy(val_prep_chem_1)
     prep_chem_1_extra_field["foo"] = "bar"
     prep_chem_1_extra_field["fizz"] = "buzz"
     return prep_chem_1_extra_field
 
 @pytest.fixture()
-def prep_chem_2_extra_field(valid_prepared_chemical_2):
+def prep_chem_2_extra_field(val_prep_chem_2):
     # Unexpected Field
-    prep_chem_2_extra_field = copy.deepcopy(valid_prepared_chemical_2)
+    prep_chem_2_extra_field = copy.deepcopy(val_prep_chem_2)
     prep_chem_2_extra_field["foo"] = "bar"
     prep_chem_2_extra_field["fizz"] = "buzz"
     return prep_chem_2_extra_field
     
 @pytest.fixture()
-def purch_chem_1_miss_field_type(valid_purchased_chemical_1):
+def purch_chem_1_miss_field_type(val_purch_chem_1):
     # Do two error return the first-encountered error as expected?
-    purch_chem_1_miss_field_type = copy.deepcopy(valid_purchased_chemical_1)
+    purch_chem_1_miss_field_type = copy.deepcopy(val_purch_chem_1)
     purch_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
     purch_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
     return purch_chem_1_miss_field_type
 
 @pytest.fixture()
-def purch_chem_2_miss_field_type(valid_purchased_chemical_2):
+def purch_chem_2_miss_field_type(val_purch_chem_2):
     # Do two error return the first-encountered error as expected?
-    purch_chem_2_miss_field_type = copy.deepcopy(valid_purchased_chemical_2)
+    purch_chem_2_miss_field_type = copy.deepcopy(val_purch_chem_2)
     purch_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
     purch_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
     return purch_chem_2_miss_field_type
 
 @pytest.fixture()
-def prep_chem_1_miss_field_type(valid_prepared_chemical_1):
+def prep_chem_1_miss_field_type(val_prep_chem_1):
     # Do two error return the first-encountered error as expected?
-    prep_chem_1_miss_field_type = copy.deepcopy(valid_prepared_chemical_1)
+    prep_chem_1_miss_field_type = copy.deepcopy(val_prep_chem_1)
     prep_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
     prep_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
     return prep_chem_1_miss_field_type
 
 @pytest.fixture()
-def prep_chem_2_miss_field_type(valid_prepared_chemical_2):
+def prep_chem_2_miss_field_type(val_prep_chem_2):
     # Do two error return the first-encountered error as expected?
-    prep_chem_2_miss_field_type = copy.deepcopy(valid_prepared_chemical_2)
+    prep_chem_2_miss_field_type = copy.deepcopy(val_prep_chem_2)
     prep_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
     prep_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
     return prep_chem_2_miss_field_type
@@ -307,12 +466,65 @@ def prep_chem_2_miss_field_type(valid_prepared_chemical_2):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @pytest.fixture()
 def invalid_chemicals(
-    valid_purchased_chemical_1,
-    valid_purchased_chemical_2,
-    valid_prepared_chemical_1,
-    valid_prepared_chemical_2
+    val_purch_chem_1,
+    val_purch_chem_2,
+    val_prep_chem_1,
+    val_prep_chem_2
     ):
     """
     Defines permutations of valid HTTP request bodies with invalid data schema.
@@ -328,324 +540,324 @@ def invalid_chemicals(
     the fixture.
     """
 
-    # valid_purchased_chemical_1
+    # val_purch_chem_1
     # Name
-    val_purch_1_name_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_name_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_name_miss_field.pop(ChemicalSchema.NAME_KEY)
 
-    val_purch_1_name_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_name_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_name_miss_value[ChemicalSchema.NAME_KEY] = None
 
-    val_purch_1_name_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_name_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_name_type[ChemicalSchema.NAME_KEY] = 1
 
     # CAS_Number
-    val_purch_1_cas_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_cas_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
 
-    val_purch_1_cas_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_cas_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_cas_miss_value[ChemicalSchema.CAS_KEY] = None
 
-    val_purch_1_cas_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_cas_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_cas_type[ChemicalSchema.CAS_KEY] = 1
 
     # Classification
-    val_purch_1_classif_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_classif_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
 
-    val_purch_1_classif_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_classif_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
 
-    val_purch_1_classif_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_classif_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
 
-    val_purch_1_classif_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_classif_inval_list_entry = copy.deepcopy(val_purch_chem_1)
     val_purch_1_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
 
     # Source
-    val_purch_1_source_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_source_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
 
-    val_purch_1_source_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_source_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
 
-    val_purch_1_source_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_source_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_source_type[ChemicalSchema.SOURCE_KEY] = 1
 
-    val_purch_1_source_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_source_inval_list_entry = copy.deepcopy(val_purch_chem_1)
     val_purch_1_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
 
     # Purchased_Fields
-    val_purch_1_purch_fields_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_purch_fields_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_purch_fields_miss_field.pop(ChemicalSchema.PURCH_FIELD_KEY)
 
-    val_purch_1_purch_fields_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_purch_fields_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_purch_fields_miss_value[ChemicalSchema.PURCH_FIELD_KEY] = None
 
-    val_purch_1_purch_fields_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_purch_fields_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_purch_fields_type[ChemicalSchema.PURCH_FIELD_KEY] = 1
 
     # Manufacturer
-    val_purch_1_manu_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_KEY)
 
-    val_purch_1_manu_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = None
 
-    val_purch_1_manu_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = 1
 
-    val_purch_1_manu_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_inval_list_entry = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = "Value of valid type but not in list"
 
     # Manufacturer_Part_Number
-    val_purch_1_manu_pn_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_pn_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_pn_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_PN_KEY)
 
-    val_purch_1_manu_pn_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_pn_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_pn_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = None
 
-    val_purch_1_manu_pn_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_manu_pn_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_manu_pn_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = 1
 
     # Amount
-    val_purch_1_amount_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_amount_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_amount_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.AMT_KEY)
 
-    val_purch_1_amount_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_amount_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_amount_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = None
 
-    val_purch_1_amount_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_amount_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_amount_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = "wrong type"
 
     # Units
-    val_purch_1_units_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_units_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_units_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.UNIT_KEY)
 
-    val_purch_1_units_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_units_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_units_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = None
 
-    val_purch_1_units_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_units_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_units_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = 1
 
-    val_purch_1_units_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_units_inval_list_entry = copy.deepcopy(val_purch_chem_1)
     val_purch_1_units_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = "Value of valid type but not in list"
 
     # Container_Type
-    val_purch_1_container_miss_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_container_miss_field = copy.deepcopy(val_purch_chem_1)
     val_purch_1_container_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.CONT_TYPE_KEY)
 
-    val_purch_1_container_miss_value = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_container_miss_value = copy.deepcopy(val_purch_chem_1)
     val_purch_1_container_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = None
 
-    val_purch_1_container_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_container_type = copy.deepcopy(val_purch_chem_1)
     val_purch_1_container_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = 1
 
-    val_purch_1_container_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_container_inval_list_entry = copy.deepcopy(val_purch_chem_1)
     val_purch_1_container_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = "Value of valid type but not in list"
 
 
-    # valid_purchased_chemical_2
+    # val_purch_chem_2
     # Name
-    val_purch_2_name_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_name_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_name_miss_field.pop(ChemicalSchema.NAME_KEY)
 
-    val_purch_2_name_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_name_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_name_miss_value[ChemicalSchema.NAME_KEY] = None
 
-    val_purch_2_name_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_name_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_name_type[ChemicalSchema.NAME_KEY] = 1
 
     # CAS_Number
-    val_purch_2_cas_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_cas_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
 
-    val_purch_2_cas_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_cas_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_cas_miss_value[ChemicalSchema.CAS_KEY] = None
 
-    val_purch_2_cas_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_cas_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_cas_type[ChemicalSchema.CAS_KEY] = 1
 
     # Classification
-    val_purch_2_classif_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_classif_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
 
-    val_purch_2_classif_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_classif_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
 
-    val_purch_2_classif_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_classif_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
 
-    val_purch_2_classif_inval_list_entry = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_classif_inval_list_entry = copy.deepcopy(val_purch_chem_2)
     val_purch_2_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
 
     # Source
-    val_purch_2_source_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_source_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
 
-    val_purch_2_source_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_source_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
 
-    val_purch_2_source_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_source_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_source_type[ChemicalSchema.SOURCE_KEY] = 1
 
-    val_purch_2_source_inval_list_entry = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_source_inval_list_entry = copy.deepcopy(val_purch_chem_2)
     val_purch_2_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
 
     # Purchased_Fields
-    val_purch_2_purch_fields_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_purch_fields_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_purch_fields_miss_field.pop(ChemicalSchema.PURCH_FIELD_KEY)
 
-    val_purch_2_purch_fields_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_purch_fields_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_purch_fields_miss_value[ChemicalSchema.PURCH_FIELD_KEY] = None
 
-    val_purch_2_purch_fields_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_purch_fields_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_purch_fields_type[ChemicalSchema.PURCH_FIELD_KEY] = 1
 
     # Manufacturer
-    val_purch_2_manu_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_KEY)
 
-    val_purch_2_manu_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = None
 
-    val_purch_2_manu_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = 1
 
-    val_purch_2_manu_inval_list_entry = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_inval_list_entry = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = "Value of valid type but not in list"
 
     # Manufacturer_Part_Number
-    val_purch_2_manu_pn_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_pn_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_pn_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_PN_KEY)
 
-    val_purch_2_manu_pn_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_pn_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_pn_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = None
 
-    val_purch_2_manu_pn_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_manu_pn_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_manu_pn_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = 1
 
     # Amount
-    val_purch_2_amount_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_amount_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_amount_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.AMT_KEY)
 
-    val_purch_2_amount_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_amount_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_amount_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = None
 
-    val_purch_2_amount_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_amount_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_amount_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = "wrong type"
 
     # Units
-    val_purch_2_units_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_units_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_units_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.UNIT_KEY)
 
-    val_purch_2_units_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_units_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_units_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = None
 
-    val_purch_2_units_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_units_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_units_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = 1
 
-    val_purch_2_units_inval_list_entry = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_units_inval_list_entry = copy.deepcopy(val_purch_chem_2)
     val_purch_2_units_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = "Value of valid type but not in list"
 
     # Container_Type
-    val_purch_2_container_miss_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_container_miss_field = copy.deepcopy(val_purch_chem_2)
     val_purch_2_container_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.CONT_TYPE_KEY)
 
-    val_purch_2_container_miss_value = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_container_miss_value = copy.deepcopy(val_purch_chem_2)
     val_purch_2_container_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = None
 
-    val_purch_2_container_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_container_type = copy.deepcopy(val_purch_chem_2)
     val_purch_2_container_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = 1
 
-    val_purch_2_container_inval_list_entry = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_container_inval_list_entry = copy.deepcopy(val_purch_chem_2)
     val_purch_2_container_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = "Value of valid type but not in list"
 
 
 
 
 
-    # valid_prepared_chemical_1
+    # val_prep_chem_1
     # Name
-    val_prep_1_name_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_name_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_name_miss_field.pop(ChemicalSchema.NAME_KEY)
 
-    val_prep_1_name_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_name_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_name_miss_value[ChemicalSchema.NAME_KEY] = None
 
-    val_prep_1_name_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_name_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_name_type[ChemicalSchema.NAME_KEY] = 1
 
     # CAS_Number
-    val_prep_1_cas_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_cas_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
 
-    val_prep_1_cas_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_cas_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_cas_miss_value[ChemicalSchema.CAS_KEY] = None
 
-    val_prep_1_cas_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_cas_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_cas_type[ChemicalSchema.CAS_KEY] = 1
 
     # Classification
-    val_prep_1_classif_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_classif_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
 
-    val_prep_1_classif_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_classif_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
 
-    val_prep_1_classif_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_classif_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
 
-    val_prep_1_classif_inval_list_entry = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_classif_inval_list_entry = copy.deepcopy(val_prep_chem_1)
     val_prep_1_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
 
     # Storage_Condition
-    val_prep_1_stor_cond_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_stor_cond_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_stor_cond_miss_field.pop(ChemicalSchema.STORAGE_KEY)
 
-    val_prep_1_stor_cond_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_stor_cond_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_stor_cond_miss_value[ChemicalSchema.STORAGE_KEY] = None
 
-    val_prep_1_stor_cond_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_stor_cond_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_stor_cond_type[ChemicalSchema.STORAGE_KEY] = 1
 
-    val_prep_1_stor_cond_inval_list_entry = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_stor_cond_inval_list_entry = copy.deepcopy(val_prep_chem_1)
     val_prep_1_stor_cond_inval_list_entry[ChemicalSchema.STORAGE_KEY] = "Value of valid type but not in list"
 
     # Source
-    val_prep_1_source_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_source_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
 
-    val_prep_1_source_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_source_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
 
-    val_prep_1_source_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_source_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_source_type[ChemicalSchema.SOURCE_KEY] = 1
 
-    val_prep_1_source_inval_list_entry = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_source_inval_list_entry = copy.deepcopy(val_prep_chem_1)
     val_prep_1_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
 
     # Prepared_Fields
-    val_prep_1_prep_fields_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_prep_fields_miss_field = copy.deepcopy(val_prep_chem_1)
     val_prep_1_prep_fields_miss_field.pop(ChemicalSchema.PREP_FIELD_KEY)
 
-    val_prep_1_prep_fields_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_prep_fields_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_prep_fields_miss_value[ChemicalSchema.PREP_FIELD_KEY] = None
 
-    val_prep_1_prep_fields_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_prep_fields_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_prep_fields_type[ChemicalSchema.PREP_FIELD_KEY] = 1
 
     # Method_Step_Reference
-    val_prep_1_meth_miss_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_meth_miss_field = copy.deepcopy(val_prep_chem_1)
     # This particular error actually generates "Missing required value" for "Prepared_Fields"
     # because it removes the only field in "Prepared_Fields" and leaves an empty dictionary.
     # Rewrite test is schema is ever updated to allow multiple fields within Prepared_Fields.
     val_prep_1_meth_miss_field[ChemicalSchema.PREP_FIELD_KEY].pop(ChemicalSchema.METH_REF_KEY)
 
-    val_prep_1_meth_miss_value = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_meth_miss_value = copy.deepcopy(val_prep_chem_1)
     val_prep_1_meth_miss_value[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = None
 
-    val_prep_1_meth_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_meth_type = copy.deepcopy(val_prep_chem_1)
     val_prep_1_meth_type[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = 1
 
     invalid_chemicals = [
@@ -751,3 +963,24 @@ def invalid_chemicals(
     ]
 
     return invalid_chemicals
+
+
+
+
+
+
+
+
+
+
+@pytest.fixture()
+def valid_prepared_lot_prep_comps():
+    """
+    This object will be configured as a lot of a prepared chemical that itself uses
+    a prepared chemical in one of its lot components for testing after a future
+    upgrade to allow that configuration.
+    
+    When that feature is implemented this reagent would use "Water, in-house," itself
+    a prepared reagent requiring a custom chemical record to document the in-house
+    water system, as a source. No logic currently exists to support this schema.
+    """
