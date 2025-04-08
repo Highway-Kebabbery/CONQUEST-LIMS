@@ -71,8 +71,8 @@ same reagent or standard under different names.
 * Additionally, the system is designed to short-circuit upon the first error found in chemical form validation
 and return that error message. The tests ensure that requests with two errors
 return the error message for the first error.
-* Malformed primary keys return error code 422.
-* Primary keys match in the request body and address.
+* Confirm that primary keys are not malformed.
+* Confirm that primary keys match in the request body and address.
 * PUT: All configurations of valid chemicals are checked for successful update agaianst each
 configuration of valid chemical.
 * PUT: All invalid chemical configurations are tested for failure to update against
@@ -283,7 +283,7 @@ def val_purch_lots(val_purch_chems):
     }
 
 @pytest.fixture()
-def val_prep_lots(val_prep_chems, val_purch_lots):
+def val_prep_lots(val_prep_chems):
     """
     The objects cannot be fully built in the fixture because a POST action is 
     required to retrieve the primary keys needed to link components to their
@@ -353,127 +353,142 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
         "val_prep_lot_2": val_prep_lot_2
     }
 
+# Setting up lots is tedious given their referential nature. This isn't a fixture
+# so as to avoid automatic posting of lots when running test_add_lot.py.
+def post_all_lots(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+):
 
+    milliq_lot = copy.deepcopy(val_purch_lots["val_purch_lot_1"])
+    h3po4_lot = copy.deepcopy(val_purch_lots["val_purch_lot_2"])
+    house_water_lot = copy.deepcopy(val_prep_lots["val_prep_lot_1"])
+    mpa_lot = copy.deepcopy(val_prep_lots["val_prep_lot_2"])
 
+    # POST val_purch_lots in order to retrieve primary keys needed for components in val_prep_lots
+    milliq_lot_resp = client.post(lots_address, json=milliq_lot)
+    h3po4_lot_resp = client.post(lots_address, json=h3po4_lot)
 
-############# Where to pick up:
-# Write the simple tests for lots. The fixtures needed (valid lots) have been created.
-# Remember that the prepared lots are unfinished and require the primary keys of posted
-# lots to complete their components objects.
+    milliq_id = milliq_lot_resp.get_json()["inserted_id"]
+    h3po4_id = h3po4_lot_resp.get_json()["inserted_id"]
 
+    assert milliq_lot_resp.status_code == 201
+    assert h3po4_lot_resp.status_code == 201
 
+    get_milliq_resp = client.get(f"{lots_address}/{milliq_id}")
+    get_h3po4_resp = client.get(f"{lots_address}/{h3po4_id}")
 
+    milliq_data = get_milliq_resp.get_json()
+    h3po4_data = get_h3po4_resp.get_json()
 
+    # Add primary key for MilliQ to Water, In-House, POST Water, In-House, and
+    # return primary key from Water, In-House to use in Mobile Phase A
+    component = house_water_lot[LotSchema.COMPONENTS_KEY][0]
+    component[LotSchema.COMP_LOT_KEY] = milliq_data[LotSchema.LOT_ID_KEY]
 
+    house_water_resp = client.post(lots_address, json=house_water_lot)
+    house_water_id = house_water_resp.json["inserted_id"]
 
+    assert house_water_resp.status_code == 201
 
+    get_house_water_resp = client.get(f"{lots_address}/{house_water_id}")
 
+    house_water_data = get_house_water_resp.get_json()
 
+    # Add component primary keys in Mobile Phase A and POST Mobile Phase A
+    house_water_component = mpa_lot[LotSchema.COMPONENTS_KEY][0]
+    house_water_component[LotSchema.COMP_LOT_KEY] = house_water_data[LotSchema.LOT_ID_KEY]
+    h3po4_component = mpa_lot[LotSchema.COMPONENTS_KEY][1]
+    h3po4_component[LotSchema.COMP_LOT_KEY] = h3po4_data[LotSchema.LOT_ID_KEY]
 
+    # POST Mobile Phase A and confirm success
+    mpa_resp = client.post(lots_address, json=mpa_lot)
 
+    mpa_id = mpa_resp.get_json()["inserted_id"]
 
+    assert mpa_resp.status_code == 201
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##############RRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# Haven't thought about anything below this line yet.
-
-
-
-
-
-@pytest.fixture()
-def purch_chem_1_extra_field(val_purch_chem_1):
-    # Unexpected Field
-    purch_chem_1_extra_field = copy.deepcopy(val_purch_chem_1)
-    purch_chem_1_extra_field["foo"] = "bar"
-    purch_chem_1_extra_field["fizz"] = "buzz"
-    return purch_chem_1_extra_field
+    return milliq_id, h3po4_id, house_water_id, mpa_id
 
 @pytest.fixture()
-def purch_chem_2_extra_field(val_purch_chem_2):
-    # Unexpected Field
-    purch_chem_2_extra_field = copy.deepcopy(val_purch_chem_2)
-    purch_chem_2_extra_field["foo"] = "bar"
-    purch_chem_2_extra_field["fizz"] = "buzz"
-    return purch_chem_2_extra_field
+def gen_lot_extra_fields(post_all_lots):
+    # Copy valid lot schema to make invalid changes
+    val_purch_lot_1 = post_all_lots[0]
+    val_purch_lot_2 = post_all_lots[1]
+    val_prep_lot_1 = post_all_lots[2]
+    val_prep_lot_2 = post_all_lots[3]
 
-@pytest.fixture()
-def prep_chem_1_extra_field(val_prep_chem_1):
-    # Unexpected Field
-    prep_chem_1_extra_field = copy.deepcopy(val_prep_chem_1)
-    prep_chem_1_extra_field["foo"] = "bar"
-    prep_chem_1_extra_field["fizz"] = "buzz"
-    return prep_chem_1_extra_field
-
-@pytest.fixture()
-def prep_chem_2_extra_field(val_prep_chem_2):
-    # Unexpected Field
-    prep_chem_2_extra_field = copy.deepcopy(val_prep_chem_2)
-    prep_chem_2_extra_field["foo"] = "bar"
-    prep_chem_2_extra_field["fizz"] = "buzz"
-    return prep_chem_2_extra_field
+    purch_lot_1_extra_field = copy.deepcopy(val_purch_lot_1)
+    purch_lot_2_extra_field = copy.deepcopy(val_purch_lot_2)
+    prep_lot_1_extra_field = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_extra_field = copy.deepcopy(val_prep_lot_2)
+    prep_lot_1_extra_comp_field = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_extra_comp_field = copy.deepcopy(val_prep_lot_2)
     
-@pytest.fixture()
-def purch_chem_1_miss_field_type(val_purch_chem_1):
-    # Do two error return the first-encountered error as expected?
-    purch_chem_1_miss_field_type = copy.deepcopy(val_purch_chem_1)
-    purch_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    purch_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return purch_chem_1_miss_field_type
+    
+    # Make invalid updates to lots
+    purch_lot_1_extra_field["foo"] = "bar"
+    purch_lot_1_extra_field["fizz"] = "buzz"
+    
+    purch_lot_2_extra_field["foo"] = "bar"
+    purch_lot_2_extra_field["fizz"] = "buzz"
+
+    prep_lot_1_extra_field["foo"] = "bar"
+    prep_lot_1_extra_field["fizz"] = "buzz"
+    
+    prep_lot_2_extra_field["foo"] = "bar"
+    prep_lot_2_extra_field["fizz"] = "buzz"
+
+    prep_lot_1_extra_comp_field["foo"] = "bar"
+    prep_lot_1_extra_comp_field["fizz"] = "buzz"
+    
+    prep_lot_2_extra_comp_field["foo"] = "bar"
+    prep_lot_2_extra_comp_field["fizz"] = "buzz"
+    
+
+
+
+
+
+
+
+
+
+
 
 @pytest.fixture()
-def purch_chem_2_miss_field_type(val_purch_chem_2):
+def purch_lot_1_miss_field_type(val_purch_lot_1):
     # Do two error return the first-encountered error as expected?
-    purch_chem_2_miss_field_type = copy.deepcopy(val_purch_chem_2)
-    purch_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    purch_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return purch_chem_2_miss_field_type
+    purch_lot_1_miss_field_type = copy.deepcopy(val_purch_lot_1)
+    purch_lot_1_miss_field_type.pop(LotSchema.NAME_KEY)
+    purch_lot_1_miss_field_type[LotSchema.CAS_KEY] = True
+    return purch_lot_1_miss_field_type
 
 @pytest.fixture()
-def prep_chem_1_miss_field_type(val_prep_chem_1):
+def purch_lot_2_miss_field_type(val_purch_lot_2):
     # Do two error return the first-encountered error as expected?
-    prep_chem_1_miss_field_type = copy.deepcopy(val_prep_chem_1)
-    prep_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    prep_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return prep_chem_1_miss_field_type
+    purch_lot_2_miss_field_type = copy.deepcopy(val_purch_lot_2)
+    purch_lot_2_miss_field_type.pop(LotSchema.NAME_KEY)
+    purch_lot_2_miss_field_type[LotSchema.CAS_KEY] = True
+    return purch_lot_2_miss_field_type
 
 @pytest.fixture()
-def prep_chem_2_miss_field_type(val_prep_chem_2):
+def prep_lot_1_miss_field_type(val_prep_lot_1):
     # Do two error return the first-encountered error as expected?
-    prep_chem_2_miss_field_type = copy.deepcopy(val_prep_chem_2)
-    prep_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    prep_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return prep_chem_2_miss_field_type
+    prep_lot_1_miss_field_type = copy.deepcopy(val_prep_lot_1)
+    prep_lot_1_miss_field_type.pop(LotSchema.NAME_KEY)
+    prep_lot_1_miss_field_type[LotSchema.CAS_KEY] = True
+    return prep_lot_1_miss_field_type
+
+@pytest.fixture()
+def prep_lot_2_miss_field_type(val_prep_lot_2):
+    # Do two error return the first-encountered error as expected?
+    prep_lot_2_miss_field_type = copy.deepcopy(val_prep_lot_2)
+    prep_lot_2_miss_field_type.pop(LotSchema.NAME_KEY)
+    prep_lot_2_miss_field_type[LotSchema.CAS_KEY] = True
+    return prep_lot_2_miss_field_type
 
 
 

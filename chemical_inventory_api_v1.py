@@ -464,6 +464,15 @@ the initial checks because it's an edge case).
     * This would allow yo uto log a lot of the water dispenser and note the expiry date is the "PM Due Date."
 * I want to enter int(0) for "Amount" for the water system lots, but it fails (as it should) for being empty.
     * Implement a workaround in the case of instruments? This is a super small edge case.
+    * This would be easier once I flatten incoming requests and handle by field rather than with a for-loop
+    dictated by the class schema components
+* Add "Removed" fields to lots, chemicals, and lists.
+    * Update DELETE end points to set Removed=True rather than actually deleting anything
+* At some point an audit trail for changes to records would be required. A separate class? Out of scope for a portfolio project.
+* Consider locking the 'Name" field for edits after record creation. This would effectively make it impossible
+to completely replace one record (say, a methanol chemical) with another (replacing said methanol record with information for an acetone product).
+This and the addition of a "Removed" flag to replace true deletion would prevent the complete disappearance of records because the names would always be available.
+Although a record could be replaced in every field but the "Name," it would be unusable as a replacement because of the locked name field.
 """
 
 app = Flask(__name__)

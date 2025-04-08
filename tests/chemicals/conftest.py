@@ -71,8 +71,8 @@ same reagent or standard under different names.
 * Additionally, the system is designed to short-circuit upon the first error found in chemical form validation
 and return that error message. The tests ensure that requests with two errors
 return the error message for the first error.
-* Malformed primary keys return error code 422.
-* Primary keys match in the request body and address.
+* Confirm that primary keys are not malformed.
+* Confirm that primary keys match in the request body and address.
 * PUT: All configurations of valid chemicals are checked for successful update agaianst each
 configuration of valid chemical.
 * PUT: All invalid chemical configurations are tested for failure to update against
