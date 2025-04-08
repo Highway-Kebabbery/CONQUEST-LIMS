@@ -156,21 +156,6 @@ def post_all_lists(client):
 
 @pytest.fixture()
 def val_purch_chems():
-    val_purch_chem_1 = {
-        ChemicalSchema.NAME_KEY: "Phosphoric acid, J.T. Baker",
-        ChemicalSchema.CAS_KEY: "7664-38-2",
-        ChemicalSchema.CLASSIF_KEY: "Weak acid",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "02-003-602",
-            ChemicalSchema.AMT_KEY: 500,
-            ChemicalSchema.UNIT_KEY: "mL",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
     val_purch_chem_2 = {
         ChemicalSchema.NAME_KEY: "Milli-Q IQ 7000 Ultrapure Water Purification System. IPN: WAT-GNV-001",
         ChemicalSchema.CAS_KEY: "7732-18-5",
@@ -183,6 +168,21 @@ def val_purch_chems():
             ChemicalSchema.AMT_KEY: 0,
             ChemicalSchema.UNIT_KEY: "N/A",
             ChemicalSchema.CONT_TYPE_KEY: "N/A"
+        }
+    }
+    
+    val_purch_chem_1 = {
+        ChemicalSchema.NAME_KEY: "Phosphoric acid, J.T. Baker",
+        ChemicalSchema.CAS_KEY: "7664-38-2",
+        ChemicalSchema.CLASSIF_KEY: "Weak acid",
+        ChemicalSchema.STORAGE_KEY: "Ambient",
+        ChemicalSchema.SOURCE_KEY: "Purchased",
+        ChemicalSchema.PURCH_FIELD_KEY: {
+            ChemicalSchema.MANU_KEY: "Fisher Scientific",
+            ChemicalSchema.MANU_PN_KEY: "02-003-602",
+            ChemicalSchema.AMT_KEY: 500,
+            ChemicalSchema.UNIT_KEY: "mL",
+            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
         }
     }
 
@@ -244,107 +244,110 @@ def val_prep_chems():
 
 @pytest.fixture()
 def val_purch_lots(val_purch_chems):
-    val_purch_h3po4 = copy.deepcopy(val_purch_chems[0])
-    val_purch_milliq = copy.deepcopy(val_purch_chems[1])
+    # Returns two purchased lot objects
+    val_purch_chem_milliq = copy.deepcopy(val_purch_chems[0])
+    val_purch_chem_h3po4 = copy.deepcopy(val_purch_chems[1])
+    
+    val_purch_chem_milliq_id = val_purch_chem_milliq[ChemicalSchema.CHEM_ID_KEY]
+    val_purch_chem_h3po4_id = val_purch_chem_h3po4[ChemicalSchema.CHEM_ID_KEY]
 
-    val_purch_h3po4_id = val_purch_h3po4[ChemicalSchema.CHEM_ID_KEY]
-    val_purch_milliq_id = val_purch_milliq[ChemicalSchema.CHEM_ID_KEY]
-
+    # A future upgrade to add "Comments" fields would allow a user to note that
+    # the "Manufacturer Lot" field correseponds to "Instrument S/N," that "Open Date"
+    # corresponds to "Last PM Date,"" and that "Expiry Date" corresponds to "PM Due
+    # Date." This could serve as a stop-gap way to document instrument information.
     val_purch_lot_1 = {
-        LotSchema.PARENT_CHEM_ID_KEY: val_purch_meoh_id,
-        LotSchema.MANU_LOT_KEY: "00142J678F",
-        LotSchema.OPEN_KEY: "2025-04-06T14:30:00-04:00",
-        LotSchema.EXPIRY_KEY: "2028-04-06T14:30:00-04:00",
-        LotSchema.EMPTY_KEY: str,
+        LotSchema.PARENT_CHEM_ID_KEY: val_purch_chem_milliq_id,
+        LotSchema.MANU_LOT_KEY: "124078GSJDLKGH98245-1254",
+        LotSchema.OPEN_KEY: "2024-12-21T14:30:00-04:00",
+        LotSchema.EXPIRY_KEY:"2025-12-21T23:59:59-04:00",
+        LotSchema.EMPTY_KEY: None,
     }
 
     val_purch_lot_2 = {
-        LotSchema.PARENT_CHEM_ID_KEY: str,
-        LotSchema.MANU_LOT_KEY: str,
-        LotSchema.OPEN_KEY: str,
-        LotSchema.EXPIRY_KEY: str,
-        LotSchema.EMPTY_KEY: str,
+        LotSchema.PARENT_CHEM_ID_KEY: val_purch_chem_h3po4_id,
+        LotSchema.MANU_LOT_KEY: "00142J678F",
+        LotSchema.OPEN_KEY: "2025-04-06T14:30:00-04:00",
+        LotSchema.EXPIRY_KEY: "2028-04-06T14:30:00-04:00",
+        LotSchema.EMPTY_KEY: None,
     }
 
-    response_1 = client.post(lots_address, json=val_purch_lot_1)
-    response_2 = client.post(lots_address, json=val_purch_lot_2)
-
-    id_1 = response_1.get_json()[LotSchema.CHEM_ID_KEY]
-    id_2 = response_2.get_json()[LotSchema.CHEM_ID_KEY]
-
-    return {
-        "val_purch_lot_1": {
-            **val_purch_lot_1, LotSchema.CHEM_ID_KEY: id_1
-        },
-        "val_purch_lot_2": {
-            **val_purch_lot_2, LotSchema.CHEM_ID_KEY: id_2
-        }
-    }
+    return val_purch_lot_1, val_purch_lot_2
 
 @pytest.fixture()
-def val_prep_lots(val_prep_chems):
-    
-    val_prep_in_house_water = copy.deepcopy(val_prep_chems[0])
-    val_prep_mpa = copy.deepcopy(val_prep_chems[1])
+def val_prep_lots(val_prep_chems, val_purch_lots):
+    """
+    The objects cannot be fully built in the fixture because a POST action is 
+    required to retrieve the primary keys needed to link components to their
+    existing lot records. Tests should first post val_purch_lot_1 and val_purch_lot_2.
+    val_purch_lot_2's primary key will be used as the lot_id component in 
+    val_prep_lot_1. At this point, val_prep_lot_1 should be posted. val_prep_lot_1
+    and val_purch_lot_2's primary keys will be used as lot_ids in the components
+    of val_prep_lot_2.
 
-    val_prep_in_house_water_id = val_prep_in_house_water[ChemicalSchema.CHEM_ID_KEY]
-    val_prep_mpa_id = val_prep_mpa[ChemicalSchema.CHEM_ID_KEY]
+    val_prep_lot_1["Components"][0] corresponds to val_purch_lot_1
+    val_prep_lot_2["Components"][0] corresponds to val_prep_lot 1
+    val_prep_lot_2["Components"][1] corresponds to val_purch_lot 2
+    """
+    # Assign parent chemical IDs (PARENT_CHEM_ID) for the prepared lots themselves
+    val_prep_chem_in_house_water = copy.deepcopy(val_prep_chems[0])
+    val_prep_chem_mpa = copy.deepcopy(val_prep_chems[1])
+
+    val_prep_chem_in_house_water_id = val_prep_chem_in_house_water[ChemicalSchema.CHEM_ID_KEY]
+    val_prep_chem_mpa_id = val_prep_chem_mpa[ChemicalSchema.CHEM_ID_KEY]
 
     # Prepared lot using a purchased component
+    # A future upgrade to add "Comments" fields would allow a user to note that
+    # the "Amount" field is irrelevant since this lot is used to log any water
+    # from the water dispenser.
     val_prep_lot_1 = {
-        LotSchema.PARENT_CHEM_ID_KEY: str,
-        LotSchema.AMT_KEY: [int, float],
-        LotSchema.UNIT_KEY: str,
-        LotSchema.CONT_TYPE_KEY: str,
-        LotSchema.PREP_DATE_KEY: str,
-        LotSchema.EXPIRY_KEY: str,
+        LotSchema.PARENT_CHEM_ID_KEY: val_prep_chem_in_house_water_id,
+        LotSchema.AMT_KEY: 0,
+        LotSchema.UNIT_KEY: "N/A",
+        LotSchema.CONT_TYPE_KEY: "N/A",
+        LotSchema.PREP_DATE_KEY: "2025-04-08T14:30:00-04:00",
+        LotSchema.EXPIRY_KEY: "2025-05-08T14:30:00-04:00",
         LotSchema.EMPTY_KEY: str,
         LotSchema.COMPONENTS_KEY: [
             {
-                LotSchema.COMP_LOT_KEY: str,
-                LotSchema.AMT_KEY: [int, float],
-                LotSchema.UNIT_KEY: str
+                LotSchema.COMP_LOT_KEY: None,   # MilliQ
+                LotSchema.AMT_KEY: 0,
+                LotSchema.UNIT_KEY: "N/A"
             }
         ]
     }
 
     # Prepared lot using both purchased and prepared components
     val_prep_lot_2 = {
-        LotSchema.PARENT_CHEM_ID_KEY: str,
-        LotSchema.AMT_KEY: [int, float],
-        LotSchema.UNIT_KEY: str,
-        LotSchema.CONT_TYPE_KEY: str,
-        LotSchema.PREP_DATE_KEY: str,
-        LotSchema.EXPIRY_KEY: str,
-        LotSchema.EMPTY_KEY: str,
+        LotSchema.PARENT_CHEM_ID_KEY: val_prep_chem_mpa_id,
+        LotSchema.AMT_KEY: 4,
+        LotSchema.UNIT_KEY: "L",
+        LotSchema.CONT_TYPE_KEY: "Bottle",
+        LotSchema.PREP_DATE_KEY: "2025-04-08T14:15:00-04:00",
+        LotSchema.EXPIRY_KEY: "2025-05-08T14:15:00-04:00",
+        LotSchema.EMPTY_KEY: None,
         LotSchema.COMPONENTS_KEY: [
             {
-                LotSchema.COMP_LOT_KEY: str,
-                LotSchema.AMT_KEY: [int, float],
-                LotSchema.UNIT_KEY: str
+                LotSchema.COMP_LOT_KEY: None,    # Water, In-House
+                LotSchema.AMT_KEY: 4000,
+                LotSchema.UNIT_KEY: "mL"
+            },
+            {
+                LotSchema.COMP_LOT_KEY: None,    # H3PO4
+                LotSchema.AMT_KEY: 4,
+                LotSchema.UNIT_KEY: "mL"
             }
         ]
     }
 
-    response_1 = client.post(lots_address, json=val_prep_lot_1)
-    response_2 = client.post(lots_address, json=val_prep_lot_2)
-
-    id_1 = response_1.get_json()[LotSchema.CHEM_ID_KEY]
-    id_2 = response_2.get_json()[LotSchema.CHEM_ID_KEY]
-
-    return {
-        "val_prep_lot_1": {
-            **val_prep_lot_1, LotSchema.CHEM_ID_KEY: id_1
-        },
-        "val_prep_lot_2": {
-            **val_prep_lot_2, LotSchema.CHEM_ID_KEY: id_2
-        }
-    }
+    return val_prep_lot_1, val_prep_lot_2
 
 
 
 
-
+############# Where to pick up:
+# Write the simple tests for lots. The fixtures needed (valid lots) have been created.
+# Remember that the prepared lots are unfinished and require the primary keys of posted
+# lots to complete their components objects.
 
 
 
@@ -963,24 +966,3 @@ def invalid_chemicals(
     ]
 
     return invalid_chemicals
-
-
-
-
-
-
-
-
-
-
-@pytest.fixture()
-def valid_prepared_lot_prep_comps():
-    """
-    This object will be configured as a lot of a prepared chemical that itself uses
-    a prepared chemical in one of its lot components for testing after a future
-    upgrade to allow that configuration.
-    
-    When that feature is implemented this reagent would use "Water, in-house," itself
-    a prepared reagent requiring a custom chemical record to document the in-house
-    water system, as a source. No logic currently exists to support this schema.
-    """
