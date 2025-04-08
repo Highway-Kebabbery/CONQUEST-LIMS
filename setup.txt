@@ -66,7 +66,7 @@ FOR TESTS ONLY: Install pytest and mongomock
 run `pytest` from root directory to test for now. There's another way to do it if I structure the project as a module later, which I don't know if I'm gong to do
 
 list setup:
-{"Name": "Classifications"}, {"List_entries": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder"]}
+{"Name": "Classifications"}, {"List_entries": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
 {"Name": "Container_types"}, {"List_entries": ["Ampoule", "Autosampler vial", "Bottle", "Vial"]}
 {"Name": "Manufacturers"}, {"List_entries": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
 {"Name": "Sources"}, {"List_entries": ["Purchased", "Prepared"]}

@@ -759,15 +759,15 @@ def test_update_chemical(
     valid_prepared_chemical_1[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_1
     valid_prepared_chemical_2[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_2
 
-    put_chem_response_1 = client.delete(f"{chemicals_address}/{val_purch_chem_id_1}")
-    put_chem_response_2 = client.delete(f"{chemicals_address}/{val_purch_chem_id_2}")
-    put_chem_response_3 = client.delete(f"{chemicals_address}/{val_prep_chem_id_1}")
-    put_chem_response_4 = client.delete(f"{chemicals_address}/{val_prep_chem_id_2}")
+    delete_chem_response_1 = client.delete(f"{chemicals_address}/{val_purch_chem_id_1}")
+    delete_chem_response_2 = client.delete(f"{chemicals_address}/{val_purch_chem_id_2}")
+    delete_chem_response_3 = client.delete(f"{chemicals_address}/{val_prep_chem_id_1}")
+    delete_chem_response_4 = client.delete(f"{chemicals_address}/{val_prep_chem_id_2}")
 
-    assert put_chem_response_1.status_code == 204
-    assert put_chem_response_2.status_code == 204
-    assert put_chem_response_3.status_code == 204
-    assert put_chem_response_4.status_code == 204
+    assert delete_chem_response_1.status_code == 204
+    assert delete_chem_response_2.status_code == 204
+    assert delete_chem_response_3.status_code == 204
+    assert delete_chem_response_4.status_code == 204
 
 
     # HTTP Code 400 response body Testing
@@ -777,12 +777,7 @@ def test_update_chemical(
     #### will return HTTP code 422.
 
 
-    # HTTP Code 422 response body Testing
-    """
-    Ensure all valid HTTP requests that fail ChemicalSchema validation return 422
-    and the appropriate error message in the request body. Missing field, missing
-    value, wrong type, and invalid list entry are handled in test_invalid_chemicals().
-    """
+    # HTTP code 404 testing
 
     ## Test for chemical record existence
     put_chem_response_1 = client.put(f"{chemicals_address}/{val_purch_chem_id_1}", json=valid_purchased_chemical_1)
@@ -795,20 +790,44 @@ def test_update_chemical(
     data_3 = put_chem_response_3.get_json()
     data_4 = put_chem_response_4.get_json()
 
-    assert put_chem_response_1.status_code == 422
+    assert put_chem_response_1.status_code == 404
     assert data_1["error"].startswith(ValidationErrorCodes.CHEM_NOT_FOUND_MSG)
-    assert put_chem_response_2.status_code == 422
+    assert put_chem_response_2.status_code == 404
     assert data_2["error"].startswith(ValidationErrorCodes.CHEM_NOT_FOUND_MSG)
-    assert put_chem_response_3.status_code == 422
+    assert put_chem_response_3.status_code == 404
     assert data_3["error"].startswith(ValidationErrorCodes.CHEM_NOT_FOUND_MSG)
-    assert put_chem_response_4.status_code == 422
+    assert put_chem_response_4.status_code == 404
     assert data_4["error"].startswith(ValidationErrorCodes.CHEM_NOT_FOUND_MSG)
 
+    # HTTP Code 422 response body Testing
+    """
+    Ensure all valid HTTP requests that fail ChemicalSchema validation return 422
+    and the appropriate error message in the request body. Missing field, missing
+    value, wrong type, and invalid list entry are handled in test_invalid_chemicals().
+    """
+
+    ## Add chemicals back to database
+    post_chem_response_1 = client.post(chemicals_address, json=valid_purchased_chemical_1)
+    post_chem_response_2 = client.post(chemicals_address, json=valid_purchased_chemical_2)
+    post_chem_response_3 = client.post(chemicals_address, json=valid_prepared_chemical_1)
+    post_chem_response_4 = client.post(chemicals_address, json=valid_prepared_chemical_2)
+
+    assert post_chem_response_1.status_code == 201
+    assert post_chem_response_2.status_code == 201
+    assert post_chem_response_3.status_code == 201
+    assert post_chem_response_4.status_code == 201
+
     ## Unexpected fields
-    extra_field_chem_response_1 = client.post(chemicals_address, json=purch_chem_1_extra_field)
-    extra_field_chem_response_2 = client.post(chemicals_address, json=purch_chem_2_extra_field)
-    extra_field_chem_response_3= client.post(chemicals_address, json=prep_chem_1_extra_field)
-    extra_field_chem_response_4= client.post(chemicals_address, json=prep_chem_2_extra_field)
+    purch_chem_1_extra_field[ChemicalSchema.CHEM_ID_KEY] = val_purch_chem_id_1
+    purch_chem_2_extra_field[ChemicalSchema.CHEM_ID_KEY] = val_purch_chem_id_2
+    prep_chem_1_extra_field[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_1
+    prep_chem_2_extra_field[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_2
+
+
+    extra_field_chem_response_1 = client.put(f"{chemicals_address}/{val_purch_chem_id_1}", json=purch_chem_1_extra_field)
+    extra_field_chem_response_2 = client.put(f"{chemicals_address}/{val_purch_chem_id_2}", json=purch_chem_2_extra_field)
+    extra_field_chem_response_3 = client.put(f"{chemicals_address}/{val_prep_chem_id_1}", json=prep_chem_1_extra_field)
+    extra_field_chem_response_4 = client.put(f"{chemicals_address}/{val_prep_chem_id_2}", json=prep_chem_2_extra_field)
 
     data_1 = extra_field_chem_response_1.get_json()
     data_2 = extra_field_chem_response_2.get_json()
@@ -825,10 +844,15 @@ def test_update_chemical(
     assert data_4["error"].startswith(ValidationErrorCodes.UNEXP_FIELD_MSG)
 
     ## Multiple errors should return the first-encountered error (control flow testing)
-    miss_field_type_response_1 = client.post(chemicals_address, json=purch_chem_1_miss_field_type)
-    miss_field_type_response_2 = client.post(chemicals_address, json=purch_chem_2_miss_field_type)
-    miss_field_type_response_3 = client.post(chemicals_address, json=prep_chem_1_miss_field_type)
-    miss_field_type_response_4 = client.post(chemicals_address, json=prep_chem_2_miss_field_type)
+    purch_chem_1_miss_field_type[ChemicalSchema.CHEM_ID_KEY] = val_purch_chem_id_1
+    purch_chem_2_miss_field_type[ChemicalSchema.CHEM_ID_KEY] = val_purch_chem_id_2
+    prep_chem_1_miss_field_type[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_1
+    prep_chem_2_miss_field_type[ChemicalSchema.CHEM_ID_KEY] = val_prep_chem_id_2
+
+    miss_field_type_response_1 = client.put(f"{chemicals_address}/{val_purch_chem_id_1}", json=purch_chem_1_miss_field_type)
+    miss_field_type_response_2 = client.put(f"{chemicals_address}/{val_purch_chem_id_2}", json=purch_chem_2_miss_field_type)
+    miss_field_type_response_3 = client.put(f"{chemicals_address}/{val_prep_chem_id_1}", json=prep_chem_1_miss_field_type)
+    miss_field_type_response_4 = client.put(f"{chemicals_address}/{val_prep_chem_id_2}", json=prep_chem_2_miss_field_type)
 
     data_1 = miss_field_type_response_1.get_json()
     data_2 = miss_field_type_response_2.get_json()
@@ -859,10 +883,6 @@ def test_update_chemical(
     mismatch_id_response_1 = client.put(f"{chemicals_address}/1", json=valid_purchased_chemical_1)
     data = mismatch_id_response_1.get_json()
 
-    print(valid_purchased_chemical_1)
-    print(data["error"])
-    print(mismatch_id_response_1.status_code)
-
     assert mismatch_id_response_1.status_code == 422
     assert data["error"].startswith("Request body primary key does not match address <chemical_id>:")
 
@@ -880,6 +900,8 @@ def test_update_chemical(
 
 # Remaining 422 status code testing
 ## Missing fields, missing values, wrong types, and invalid list entries
+## Testing all internal schema validation failures against all combinations of
+## update between purchased and prepared reagents.
 @pytest.mark.parametrize("payload, expected_error_prefix", invalid_chemicals)
 def test_invalid_chemicals(client, payload, expected_error_prefix, post_all_lists, post_valid_chemicals):
     (val_purch_chem_id_1,
@@ -918,30 +940,30 @@ def test_invalid_chemicals(client, payload, expected_error_prefix, post_all_list
     val_prep_chem_1_data = val_prep_chem_1_response.get_json()
     val_prep_chem_2_data = val_prep_chem_2_response.get_json()
 
-    assert val_purch_chem_1_response.status_code == 422
     if not val_purch_chem_1_data["error"].startswith(str(expected_error_prefix)):
         print(f"Payload: {payload}")
         print(f"Expected error: {expected_error_prefix}")
         print(f"Returned error: {val_purch_chem_1_data['error']}")
     assert val_purch_chem_1_data["error"].startswith(str(expected_error_prefix))
+    assert val_purch_chem_1_response.status_code == 422
 
-    assert val_purch_chem_2_response.status_code == 422
     if not val_purch_chem_2_data["error"].startswith(str(expected_error_prefix)):
         print(f"Payload: {payload}")
         print(f"Expected error: {expected_error_prefix}")
         print(f"Returned error: {val_purch_chem_2_data['error']}")
     assert val_purch_chem_2_data["error"].startswith(str(expected_error_prefix))
+    assert val_purch_chem_2_response.status_code == 422
 
-    assert val_prep_chem_1_response.status_code == 422
     if not val_prep_chem_1_data["error"].startswith(str(expected_error_prefix)):
         print(f"Payload: {payload}")
         print(f"Expected error: {expected_error_prefix}")
         print(f"Returned error: {val_prep_chem_1_data['error']}")
     assert val_prep_chem_1_data["error"].startswith(str(expected_error_prefix))
+    assert val_prep_chem_1_response.status_code == 422
 
-    assert val_prep_chem_2_response.status_code == 422
     if not val_prep_chem_2_data["error"].startswith(str(expected_error_prefix)):
         print(f"Payload: {payload}")
         print(f"Expected error: {expected_error_prefix}")
         print(f"Returned error: {val_prep_chem_2_data['error']}")
     assert val_prep_chem_2_data["error"].startswith(str(expected_error_prefix))
+    assert val_prep_chem_2_response.status_code == 422

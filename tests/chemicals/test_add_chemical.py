@@ -689,7 +689,7 @@ def test_add_chemical(
 
 
 
-    # HTTP Code 422 response body Testing
+    # HTTP code 422 response body Testing
     """
     Ensure all valid HTTP requests that fail ChemicalSchema validation return 422
     and the appropriate error message in the request body. Missing field, missing
@@ -764,9 +764,9 @@ def test_add_invalid_chemicals(client, payload, expected_error_prefix, post_all_
     response = client.post(chemicals_address, json=copy.deepcopy(payload))
     data = response.get_json()
 
-    assert response.status_code == 422
     if not data["error"].startswith(str(expected_error_prefix)):
         print(f"Payload: {payload}")
         print(f"Expected error: {expected_error_prefix}")
         print(f"Returned error: {data['error']}")
     assert data["error"].startswith(str(expected_error_prefix))
+    assert response.status_code == 422
