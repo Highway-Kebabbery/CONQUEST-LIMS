@@ -15,10 +15,10 @@ def test_get_lot(
 ):
     val_lots = post_all_lots(client, post_all_lists, val_purch_lots, val_prep_lots)
 
-    milliq_id = val_lots[0]
-    h3po4_id = val_lots[1]
-    house_water_id = val_lots[2]
-    mpa_id = val_lots[3]
+    milliq_id = val_lots["val_purch_lot_1"][LotSchema.LOT_ID_KEY]
+    h3po4_id = val_lots["val_purch_lot_2"][LotSchema.LOT_ID_KEY]
+    house_water_id = val_lots["val_prep_lot_1"][LotSchema.LOT_ID_KEY]
+    mpa_id = val_lots["val_prep_lot_2"][LotSchema.LOT_ID_KEY]
 
     # GET lots created in post_all_lots fixture
     get_resp_1 = client.get(f"{lots_address}/{milliq_id}")
