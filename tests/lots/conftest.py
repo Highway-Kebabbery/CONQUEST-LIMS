@@ -1,13 +1,13 @@
 """
 # Chemical/Lot Choice as it Pertains to Test Design:
 
-## Chemical Choice
-* Mobile Phase A: A prepared chemical using one purchased chemical and
-one prepared chemical (Water, in-house) as components.
-* Mobile Phase B: A prepared chemical using three purchased chemicals
-as components. These three chemicals are sufficient to test the system
+## Chemical/Lot Choice
+* Mobile Phase A: A prepared chemical/lot using one purchased chemical/lot and
+one prepared chemical/lot (Water, in-house) as components.
+* Mobile Phase B: A prepared chemical/lot using three purchased chemicals/lots
+as components. These three chemicals/lots are sufficient to test the system
 as it is currently able to function
-* The above prepared chemicals require several purchased chemicals and, by 
+* The above prepared chemicals/lots require several purchased chemicals/lots and, by 
 my contrivance, a prepared material (Water, in-house).
 
 ## Valid Chemical Configurations
@@ -17,32 +17,29 @@ Chemical requests can arrive in one of two configurations:
 * Prepared materials
 
 ## Valid Lot Configurations:
-It doesn't matter for the purposes of chemical testing, but these chemicals
-were chosen because they can be used in lot testing to test all paths through
-the lot validation logic. At the least, it is recommended to keep Mobile Phase A
-for chemical testing. Between Mobile Phase A and its components, the entire lot
+Between Mobile Phase A and its components, the entire lot
 validation class will be tested. Note that a prepared lot with only prepared lots/
-chemicals as components is not tested because Mobile Phase A will force both paths
+chemicals as components is not explicitly tested because Mobile Phase A will force both paths
 to execute. The valid lot configurations are:
 
-* Lots of purchased chemicals
-* Lots of prepared chemicals that use only purchased chemicals as components
-* Lots of prepared chemicals that use a mix of purchased and prepared chemicals as components.
-* Lots of prepared chemicals that use only prepared materials as components (not tested)
+* Lots of purchased chemicals/lots
+* Lots of prepared chemicals/lots that use only purchased chemicals/lots as components
+* Lots of prepared chemicals/lots that use a mix of purchased and prepared chemicals/lots as components.
+* Lots of prepared chemicals/lots that use only prepared materials as components (not tested)
 
 
 # Scenarios Tested:
 
 ## HTTP code 200:
-* The tests verify that chemical objects of all valid configurations are
+* Verify that lot objects of all valid configurations are
 successfully modified in or retrieved from the database.
 
 ## HTTP code 201
-* The tests verify that chemical objects of all valid configurations are
+* Verify that lot objects of all valid configurations are
 successfully inserted in the database.
 
 ## HTTP code 204
-* Chemical objects of all valid configurations are successfully deleted from 
+* Lot objects of all valid configurations are successfully deleted from 
 the database.
 
 ## HTTP code 400
@@ -50,33 +47,34 @@ the database.
 * GET requests with malformed primary keys return error code 400
 
 ## HTTP code 404
-* Chemicals not found in the database returr error code 404.
+* Lots not found in the database returr error code 404.
+* Lots with parent chemical templates not found in the database return error code 404.
 
 ## HTTP code 422:
-All fields in the chemical request body, the primary key (if applicable), and
+All fields in the lot request body, the primary key (if applicable), and
 the nature of the request itself are tested individually to verify that the
 system properly validates all applicable error codes:
 
-* No required keys are missing from chemical requests.
-* No required values are left empty in chemical requests.
-* All fields in a chemical request are the correct type.
-* No fields in a chemical request with entry constrained by a list contain values not in that list.
-* No unexpected keys arrive in a chemical request.
-* PUT: The chemical requested for update exists in the database.
-* POST: The chemical request does not attempt to create a new chemical with the same 
-combination of manufacturer, manufacturer part number, amount, unit, and
-container type as an existing chemical to prevent duplicate entries of the
-same reagent or standard under different names.
-* PUT: The chemical request does not contain a malformed primary key.
-* Additionally, the system is designed to short-circuit upon the first error found in chemical form validation
+
+#RRRRRRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE Review this after all testing complete
+* No required keys are missing from lot requests.
+* No required values are left empty in lot requests.
+* All fields in a lot request are the correct type.
+* No fields in a lot request with entry constrained by a list contain values not in that list.
+* No unexpected keys arrive in a lot request, nor in the fields of a purchased or prepared component in a lot request.
+* PUT: The lot requested for update exists in the database.
+* PUT: The lot request does not contain a malformed primary key.
+* Additionally, the system is designed to short-circuit upon the first error found in lot form validation
 and return that error message. The tests ensure that requests with two errors
 return the error message for the first error.
-* Malformed primary keys return error code 422.
-* Primary keys match in the request body and address.
-* PUT: All configurations of valid chemicals are checked for successful update agaianst each
-configuration of valid chemical.
-* PUT: All invalid chemical configurations are tested for failure to update against
-all valid chemical configurations.
+* Confirm that primary keys match in the request body and address.
+
+
+* Do I do this??????????RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+* PUT: All configurations of valid lots are checked for successful update agaianst each
+configuration of a valid lot.
+* PUT: All invalid lot configurations are tested for failure to update against
+all valid lot configurations.
 *
 *
 *
@@ -86,7 +84,8 @@ in place I can begin to put together the finer details of checking lots.
 
 ### Strictly Lot-Related testing notes:
 
-    * Lots used for happy path testing confirm that null empty dates work
+* Lots used for happy path testing confirm that null empty dates work
+* All date strings in a lot request are in valid ISO 8601 format and include timezone offsets.
 
 """
 
@@ -132,7 +131,7 @@ def client(app):
 def post_all_lists(client):
     # Validated lists
     classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
-    container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial", "N/A"]}
+    container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial", "Instrument", "N/A"]}
     manufacturers = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.MANU_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "J.T. Baker", "Milli-Q", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
     sources = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.SOURCES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Purchased", "Prepared"]}
     storage_conditions = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.STOR_COND_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
@@ -283,7 +282,7 @@ def val_purch_lots(val_purch_chems):
     }
 
 @pytest.fixture()
-def val_prep_lots(val_prep_chems, val_purch_lots):
+def val_prep_lots(val_prep_chems):
     """
     The objects cannot be fully built in the fixture because a POST action is 
     required to retrieve the primary keys needed to link components to their
@@ -310,9 +309,9 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
     # from the water dispenser.
     val_prep_lot_1 = {
         LotSchema.PARENT_CHEM_ID_KEY: val_prep_chem_in_house_water_id,
-        LotSchema.AMT_KEY: 0,
+        LotSchema.AMT_KEY: 999999,
         LotSchema.UNIT_KEY: "N/A",
-        LotSchema.CONT_TYPE_KEY: "N/A",
+        LotSchema.CONT_TYPE_KEY: "Instrument",
         LotSchema.PREP_DATE_KEY: "2025-04-08T14:30:00-04:00",
         LotSchema.EXPIRY_KEY: "2025-05-08T14:30:00-04:00",
         LotSchema.EMPTY_KEY: None,
@@ -353,194 +352,322 @@ def val_prep_lots(val_prep_chems, val_purch_lots):
         "val_prep_lot_2": val_prep_lot_2
     }
 
+# Setting up lots is tedious given their referential nature. This isn't a fixture
+# so as to avoid automatic posting of lots when running test_add_lot.py.
+def post_all_lots(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+):
+    valid_purchased_lot_1 = val_purch_lots["val_purch_lot_1"]
+    valid_purchased_lot_2 = val_purch_lots["val_purch_lot_2"]
+    valid_prepared_lot_1 = val_prep_lots["val_prep_lot_1"]
+    valid_prepared_lot_2 = val_prep_lots["val_prep_lot_2"]
 
+    milliq_lot = copy.deepcopy(valid_purchased_lot_1)
+    h3po4_lot = copy.deepcopy(valid_purchased_lot_2)
+    house_water_lot = copy.deepcopy(valid_prepared_lot_1)
+    mpa_lot = copy.deepcopy(valid_prepared_lot_2)
 
+    # POST val_purch_lots in order to retrieve primary keys needed for components in val_prep_lots
+    milliq_lot_resp = client.post(lots_address, json=milliq_lot)
+    h3po4_lot_resp = client.post(lots_address, json=h3po4_lot)
 
-############# Where to pick up:
-# Write the simple tests for lots. The fixtures needed (valid lots) have been created.
-# Remember that the prepared lots are unfinished and require the primary keys of posted
-# lots to complete their components objects.
+    milliq_id = milliq_lot_resp.get_json()["inserted_id"]
+    h3po4_id = h3po4_lot_resp.get_json()["inserted_id"]
 
+    assert milliq_lot_resp.status_code == 201
+    assert h3po4_lot_resp.status_code == 201
 
+    get_milliq_resp = client.get(f"{lots_address}/{milliq_id}")
+    get_h3po4_resp = client.get(f"{lots_address}/{h3po4_id}")
 
+    milliq_data = get_milliq_resp.get_json()
+    h3po4_data = get_h3po4_resp.get_json()
 
+    # Add primary key for MilliQ to Water, In-House, POST Water, In-House, and
+    # return primary key from Water, In-House to use in Mobile Phase A
+    component = house_water_lot[LotSchema.COMPONENTS_KEY][0]
+    component[LotSchema.COMP_LOT_KEY] = milliq_data[LotSchema.LOT_ID_KEY]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##############RRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# Haven't thought about anything below this line yet.
-
-
-
-
-
-@pytest.fixture()
-def purch_chem_1_extra_field(val_purch_chem_1):
-    # Unexpected Field
-    purch_chem_1_extra_field = copy.deepcopy(val_purch_chem_1)
-    purch_chem_1_extra_field["foo"] = "bar"
-    purch_chem_1_extra_field["fizz"] = "buzz"
-    return purch_chem_1_extra_field
-
-@pytest.fixture()
-def purch_chem_2_extra_field(val_purch_chem_2):
-    # Unexpected Field
-    purch_chem_2_extra_field = copy.deepcopy(val_purch_chem_2)
-    purch_chem_2_extra_field["foo"] = "bar"
-    purch_chem_2_extra_field["fizz"] = "buzz"
-    return purch_chem_2_extra_field
-
-@pytest.fixture()
-def prep_chem_1_extra_field(val_prep_chem_1):
-    # Unexpected Field
-    prep_chem_1_extra_field = copy.deepcopy(val_prep_chem_1)
-    prep_chem_1_extra_field["foo"] = "bar"
-    prep_chem_1_extra_field["fizz"] = "buzz"
-    return prep_chem_1_extra_field
-
-@pytest.fixture()
-def prep_chem_2_extra_field(val_prep_chem_2):
-    # Unexpected Field
-    prep_chem_2_extra_field = copy.deepcopy(val_prep_chem_2)
-    prep_chem_2_extra_field["foo"] = "bar"
-    prep_chem_2_extra_field["fizz"] = "buzz"
-    return prep_chem_2_extra_field
+    post_house_water_resp = client.post(lots_address, json=house_water_lot)
+    house_water_id = post_house_water_resp.get_json()["inserted_id"]
     
-@pytest.fixture()
-def purch_chem_1_miss_field_type(val_purch_chem_1):
-    # Do two error return the first-encountered error as expected?
-    purch_chem_1_miss_field_type = copy.deepcopy(val_purch_chem_1)
-    purch_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    purch_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return purch_chem_1_miss_field_type
+    assert post_house_water_resp.status_code == 201
+
+    get_house_water_resp = client.get(f"{lots_address}/{house_water_id}")
+
+    house_water_data = get_house_water_resp.get_json()
+
+    # Add component primary keys in Mobile Phase A and POST Mobile Phase A
+    house_water_component = mpa_lot[LotSchema.COMPONENTS_KEY][0]
+    house_water_component[LotSchema.COMP_LOT_KEY] = house_water_data[LotSchema.LOT_ID_KEY]
+    h3po4_component = mpa_lot[LotSchema.COMPONENTS_KEY][1]
+    h3po4_component[LotSchema.COMP_LOT_KEY] = h3po4_data[LotSchema.LOT_ID_KEY]
+
+    # POST Mobile Phase A and confirm success
+    mpa_resp = client.post(lots_address, json=mpa_lot)
+
+    mpa_id = mpa_resp.get_json()["inserted_id"]
+
+    assert mpa_resp.status_code == 201
+
+    return {
+        "val_purch_lot_1": {
+            **milliq_lot, LotSchema.LOT_ID_KEY: milliq_id
+        },
+        "val_purch_lot_2": {
+            **h3po4_lot, LotSchema.LOT_ID_KEY: h3po4_id
+        },
+        "val_prep_lot_1": {
+            **house_water_lot, LotSchema.LOT_ID_KEY: house_water_id
+        },
+        "val_prep_lot_2": {
+            **mpa_lot, LotSchema.LOT_ID_KEY: mpa_id
+        }
+    }
 
 @pytest.fixture()
-def purch_chem_2_miss_field_type(val_purch_chem_2):
-    # Do two error return the first-encountered error as expected?
-    purch_chem_2_miss_field_type = copy.deepcopy(val_purch_chem_2)
-    purch_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    purch_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return purch_chem_2_miss_field_type
+def gen_lot_extra_fields(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+        ):
+    # Copy valid lot schema to make invalid changes
+    lots = post_all_lots(
+        client,
+        post_all_lists,
+        val_purch_lots,
+        val_prep_lots
+    )
+
+    val_purch_lot_1 = lots["val_purch_lot_1"]
+    val_purch_lot_2 = lots["val_purch_lot_2"]
+    val_prep_lot_1 = lots["val_prep_lot_1"]
+    val_prep_lot_2 = lots["val_prep_lot_2"]
+
+    purch_lot_1_extra_field = copy.deepcopy(val_purch_lot_1)
+    purch_lot_2_extra_field = copy.deepcopy(val_purch_lot_2)
+    prep_lot_1_extra_field = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_extra_field = copy.deepcopy(val_prep_lot_2)
+    prep_lot_1_extra_comp_field = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_extra_comp_field = copy.deepcopy(val_prep_lot_2)
+    
+    
+    # Make invalid updates to lots
+    purch_lot_1_extra_field["foo"] = "bar"
+    purch_lot_1_extra_field["fizz"] = "buzz"
+    
+    purch_lot_2_extra_field["foo"] = "bar"
+    purch_lot_2_extra_field["fizz"] = "buzz"
+
+    prep_lot_1_extra_field["foo"] = "bar"
+    prep_lot_1_extra_field["fizz"] = "buzz"
+    
+    prep_lot_2_extra_field["foo"] = "bar"
+    prep_lot_2_extra_field["fizz"] = "buzz"
+
+    # Extra field on purchased component
+    prep_lot_1_extra_comp_field[LotSchema.COMPONENTS_KEY][0]["foo"] = "bar"
+    prep_lot_1_extra_comp_field[LotSchema.COMPONENTS_KEY][0]["fizz"] = "buzz"
+    
+    # Extra field on prepared component
+    prep_lot_2_extra_comp_field[LotSchema.COMPONENTS_KEY][0]["foo"] = "bar"
+    prep_lot_2_extra_comp_field[LotSchema.COMPONENTS_KEY][0]["fizz"] = "buzz"
+
+    return [
+        purch_lot_1_extra_field,
+        purch_lot_2_extra_field,
+        prep_lot_1_extra_field,
+        prep_lot_2_extra_field,
+        prep_lot_1_extra_comp_field,
+        prep_lot_2_extra_comp_field
+    ]
 
 @pytest.fixture()
-def prep_chem_1_miss_field_type(val_prep_chem_1):
-    # Do two error return the first-encountered error as expected?
-    prep_chem_1_miss_field_type = copy.deepcopy(val_prep_chem_1)
-    prep_chem_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    prep_chem_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return prep_chem_1_miss_field_type
+def gen_lots_bad_dates(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+        ):
+    # Copy valid lot schema to make invalid changes
+    lots = post_all_lots(
+        client,
+        post_all_lists,
+        val_purch_lots,
+        val_prep_lots
+    )
+
+    val_purch_lot_1 = lots["val_purch_lot_1"]
+    val_purch_lot_2 = lots["val_purch_lot_2"]
+    val_prep_lot_1 = lots["val_prep_lot_1"]
+    val_prep_lot_2 = lots["val_prep_lot_2"]
+
+    purch_lot_1_open = copy.deepcopy(val_purch_lot_1)
+    purch_lot_1_expiry = copy.deepcopy(val_purch_lot_1)
+    purch_lot_1_empty = copy.deepcopy(val_purch_lot_1)
+    purch_lot_2_open = copy.deepcopy(val_purch_lot_2)
+    purch_lot_2_expiry = copy.deepcopy(val_purch_lot_2)
+    purch_lot_2_empty = copy.deepcopy(val_purch_lot_2)
+    prep_lot_1_prep = copy.deepcopy(val_prep_lot_1)
+    prep_lot_1_expiry = copy.deepcopy(val_prep_lot_1)
+    prep_lot_1_empty = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_prep = copy.deepcopy(val_prep_lot_2)
+    prep_lot_2_expiry = copy.deepcopy(val_prep_lot_2)
+    prep_lot_2_empty = copy.deepcopy(val_prep_lot_2)
+
+    purch_lot_1_open_offset = copy.deepcopy(val_purch_lot_1)
+    purch_lot_1_expiry_offset = copy.deepcopy(val_purch_lot_1)
+    purch_lot_1_empty_offset = copy.deepcopy(val_purch_lot_1)
+    purch_lot_2_open_offset = copy.deepcopy(val_purch_lot_2)
+    purch_lot_2_expiry_offset = copy.deepcopy(val_purch_lot_2)
+    purch_lot_2_empty_offset = copy.deepcopy(val_purch_lot_2)
+    prep_lot_1_prep_offset = copy.deepcopy(val_prep_lot_1)
+    prep_lot_1_expiry_offset = copy.deepcopy(val_prep_lot_1)
+    prep_lot_1_empty_offset = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_prep_offset = copy.deepcopy(val_prep_lot_2)
+    prep_lot_2_expiry_offset = copy.deepcopy(val_prep_lot_2)
+    prep_lot_2_empty_offset = copy.deepcopy(val_prep_lot_2)
+    
+    # Make invalid updates to lots
+    purch_lot_1_open[LotSchema.OPEN_KEY] = "1"
+    purch_lot_1_expiry[LotSchema.EXPIRY_KEY] = "1"
+    purch_lot_1_empty[LotSchema.EMPTY_KEY] = "1"
+    purch_lot_2_open[LotSchema.OPEN_KEY] = "1"
+    purch_lot_2_expiry[LotSchema.EXPIRY_KEY] = "1"
+    purch_lot_2_empty[LotSchema.EMPTY_KEY] = "1"
+    prep_lot_1_prep[LotSchema.PREP_DATE_KEY] = "1"
+    prep_lot_1_expiry[LotSchema.EXPIRY_KEY] = "1"
+    prep_lot_1_empty[LotSchema.EMPTY_KEY] = "1"
+    prep_lot_2_prep[LotSchema.PREP_DATE_KEY] = "1"
+    prep_lot_2_expiry[LotSchema.EXPIRY_KEY] = "1"
+    prep_lot_2_empty[LotSchema.EMPTY_KEY] = "1"
+    
+    purch_lot_1_open_offset[LotSchema.OPEN_KEY] = "2025-05-08T14:15:00"
+    purch_lot_1_expiry_offset[LotSchema.EXPIRY_KEY] = "2025-05-08T14:15:00"
+    purch_lot_1_empty_offset[LotSchema.EMPTY_KEY] = "2025-05-08T14:15:00"
+    purch_lot_2_open_offset[LotSchema.OPEN_KEY] = "2025-05-08T14:15:00"
+    purch_lot_2_expiry_offset[LotSchema.EXPIRY_KEY] = "2025-05-08T14:15:00"
+    purch_lot_2_empty_offset[LotSchema.EMPTY_KEY] = "2025-05-08T14:15:00"
+    prep_lot_1_prep_offset[LotSchema.PREP_DATE_KEY] = "2025-05-08T14:15:00"
+    prep_lot_1_expiry_offset[LotSchema.EXPIRY_KEY] = "2025-05-08T14:15:00"
+    prep_lot_1_empty_offset[LotSchema.EMPTY_KEY] = "2025-05-08T14:15:00"
+    prep_lot_2_prep_offset[LotSchema.PREP_DATE_KEY] = "2025-05-08T14:15:00"
+    prep_lot_2_expiry_offset[LotSchema.EXPIRY_KEY] = "2025-05-08T14:15:00"
+    prep_lot_2_empty_offset[LotSchema.EMPTY_KEY] = "2025-05-08T14:15:00"
+
+    # I stop returning generated lots as dicts because it got really tedious right here.
+    # It would be more clear, but the app was my focus; I jsut need the tests to work
+    return [
+        purch_lot_1_open,
+        purch_lot_1_expiry,
+        purch_lot_1_empty,
+        purch_lot_2_open,
+        purch_lot_2_expiry,
+        purch_lot_2_empty,
+        prep_lot_1_prep,
+        prep_lot_1_expiry,
+        prep_lot_1_empty,
+        prep_lot_2_prep,
+        prep_lot_2_expiry,
+        prep_lot_2_empty,
+
+        purch_lot_1_open_offset,
+        purch_lot_1_expiry_offset,
+        purch_lot_1_empty_offset,
+        purch_lot_2_open_offset,
+        purch_lot_2_expiry_offset,
+        purch_lot_2_empty_offset,
+        prep_lot_1_prep_offset,
+        prep_lot_1_expiry_offset,
+        prep_lot_1_empty_offset,
+        prep_lot_2_prep_offset,
+        prep_lot_2_expiry_offset,
+        prep_lot_2_empty_offset
+    ]
 
 @pytest.fixture()
-def prep_chem_2_miss_field_type(val_prep_chem_2):
-    # Do two error return the first-encountered error as expected?
-    prep_chem_2_miss_field_type = copy.deepcopy(val_prep_chem_2)
-    prep_chem_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
-    prep_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
-    return prep_chem_2_miss_field_type
+def gen_lots_miss_comp(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+        ):
+    # Copy valid lot schema to make invalid changes
+    lots = post_all_lots(
+        client,
+        post_all_lists,
+        val_purch_lots,
+        val_prep_lots
+    )
 
+    val_prep_lot_1 = lots["val_prep_lot_1"]
+    val_prep_lot_2 = lots["val_prep_lot_2"]
 
+    prep_lot_1_miss_comp = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_miss_comp = copy.deepcopy(val_prep_lot_2)
 
+    # Make invalid updates to lots
+    prep_lot_1_miss_comp[LotSchema.COMPONENTS_KEY] = []
+    prep_lot_2_miss_comp[LotSchema.COMPONENTS_KEY] = []
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return [
+        prep_lot_1_miss_comp,
+        prep_lot_2_miss_comp
+    ]
 
 @pytest.fixture()
-def invalid_chemicals(
-    val_purch_chem_1,
-    val_purch_chem_2,
-    val_prep_chem_1,
-    val_prep_chem_2
-    ):
+def gen_multiple_errors(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+        ):
+    # Copy valid lot schema to make invalid changes
+    lots = post_all_lots(
+        client,
+        post_all_lists,
+        val_purch_lots,
+        val_prep_lots
+    )
+
+    val_purch_lot_1 = lots["val_purch_lot_1"]
+    val_purch_lot_2 = lots["val_purch_lot_2"]
+    val_prep_lot_1 = lots["val_prep_lot_1"]
+    val_prep_lot_2 = lots["val_prep_lot_2"]
+
+    purch_lot_1_extra_field_type = copy.deepcopy(val_purch_lot_1)
+    purch_lot_2_extra_field_type = copy.deepcopy(val_purch_lot_2)
+    prep_lot_1_extra_field_type = copy.deepcopy(val_prep_lot_1)
+    prep_lot_2_extra_field_type = copy.deepcopy(val_prep_lot_2)
+
+    purch_lot_1_extra_field_type["foo"] = "bar"
+    purch_lot_2_extra_field_type["foo"] = "bar"
+    prep_lot_1_extra_field_type["foo"] = "bar"
+    prep_lot_2_extra_field_type["foo"] = "bar"
+
+    purch_lot_1_extra_field_type.pop(LotSchema.MANU_LOT_KEY)
+    purch_lot_2_extra_field_type.pop(LotSchema.MANU_LOT_KEY)
+    prep_lot_1_extra_field_type.pop(LotSchema.AMT_KEY)
+    prep_lot_2_extra_field_type.pop(LotSchema.AMT_KEY)
+
+    return [
+        purch_lot_1_extra_field_type,
+        purch_lot_2_extra_field_type,
+        prep_lot_1_extra_field_type,
+        prep_lot_2_extra_field_type
+    ]
+
+@pytest.fixture()
+def invalid_lots(
+    client,
+    post_all_lists,
+    val_purch_lots,
+    val_prep_lots
+        ):
     """
     Defines permutations of valid HTTP request bodies with invalid data schema.
     Magic numbers, types, and string literals in this section are chosen
@@ -554,427 +681,435 @@ def invalid_chemicals(
     the tests that use it, but in the future would like to learn how to pass in
     the fixture.
     """
+    # Copy valid lot schema to make invalid changes
+    lots = post_all_lots(
+        client,
+        post_all_lists,
+        val_purch_lots,
+        val_prep_lots
+    )
 
-    # val_purch_chem_1
-    # Name
-    val_purch_1_name_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_name_miss_field.pop(ChemicalSchema.NAME_KEY)
+    valid_purchased_lot_1 = lots["val_purch_lot_1"]
+    valid_purchased_lot_2 = lots["val_purch_lot_2"]
+    valid_prepared_lot_1 = lots["val_prep_lot_1"]
+    valid_prepared_lot_2 = lots["val_prep_lot_2"]
 
-    val_purch_1_name_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_name_miss_value[ChemicalSchema.NAME_KEY] = None
+    # val_purch_lot_1 invalid permutations
+    val_purch_1_chem_id_miss_field = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_chem_id_miss_field.pop(LotSchema.PARENT_CHEM_ID_KEY)
 
-    val_purch_1_name_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_name_type[ChemicalSchema.NAME_KEY] = 1
+    val_purch_1_chem_id_miss_value = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_chem_id_miss_value[LotSchema.PARENT_CHEM_ID_KEY] = None
 
-    # CAS_Number
-    val_purch_1_cas_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
+    val_purch_1_chem_id_type = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_chem_id_type[LotSchema.PARENT_CHEM_ID_KEY] = 1
 
-    val_purch_1_cas_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_cas_miss_value[ChemicalSchema.CAS_KEY] = None
+    val_purch_1_manu_lot_miss_field = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_manu_lot_miss_field.pop(LotSchema.MANU_LOT_KEY)
 
-    val_purch_1_cas_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_cas_type[ChemicalSchema.CAS_KEY] = 1
+    val_purch_1_manu_lot_miss_value = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_manu_lot_miss_value[LotSchema.MANU_LOT_KEY] = None
 
-    # Classification
-    val_purch_1_classif_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
+    val_purch_1_manu_lot_type = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_manu_lot_type[LotSchema.MANU_LOT_KEY] = 1
 
-    val_purch_1_classif_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
+    val_purch_1_open_miss_field = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_open_miss_field.pop(LotSchema.OPEN_KEY)
 
-    val_purch_1_classif_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
+    val_purch_1_open_type = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_open_type[LotSchema.OPEN_KEY] = 1
 
-    val_purch_1_classif_inval_list_entry = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
+    val_purch_1_expiry_miss_field = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_expiry_miss_field.pop(LotSchema.EXPIRY_KEY)
 
-    # Source
-    val_purch_1_source_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
+    val_purch_1_expiry_miss_value = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_expiry_miss_value[LotSchema.EXPIRY_KEY] = None
 
-    val_purch_1_source_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
+    val_purch_1_expiry_type = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_expiry_type[LotSchema.EXPIRY_KEY] = 1
 
-    val_purch_1_source_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_source_type[ChemicalSchema.SOURCE_KEY] = 1
+    val_purch_1_empty_miss_field = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_empty_miss_field.pop(LotSchema.EMPTY_KEY)
 
-    val_purch_1_source_inval_list_entry = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
+    val_purch_1_empty_type = copy.deepcopy(valid_purchased_lot_1)
+    val_purch_1_empty_type[LotSchema.EMPTY_KEY] = 1
 
-    # Purchased_Fields
-    val_purch_1_purch_fields_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_purch_fields_miss_field.pop(ChemicalSchema.PURCH_FIELD_KEY)
 
-    val_purch_1_purch_fields_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_purch_fields_miss_value[ChemicalSchema.PURCH_FIELD_KEY] = None
+    # val_purch_lot_2 invalid permutations
+    val_purch_2_chem_id_miss_field = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_chem_id_miss_field.pop(LotSchema.PARENT_CHEM_ID_KEY)
 
-    val_purch_1_purch_fields_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_purch_fields_type[ChemicalSchema.PURCH_FIELD_KEY] = 1
+    val_purch_2_chem_id_miss_value = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_chem_id_miss_value[LotSchema.PARENT_CHEM_ID_KEY] = None
 
-    # Manufacturer
-    val_purch_1_manu_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_KEY)
+    val_purch_2_chem_id_type = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_chem_id_type[LotSchema.PARENT_CHEM_ID_KEY] = 1
 
-    val_purch_1_manu_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = None
+    val_purch_2_manu_lot_miss_field = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_manu_lot_miss_field.pop(LotSchema.MANU_LOT_KEY)
 
-    val_purch_1_manu_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = 1
+    val_purch_2_manu_lot_miss_value = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_manu_lot_miss_value[LotSchema.MANU_LOT_KEY] = None
 
-    val_purch_1_manu_inval_list_entry = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = "Value of valid type but not in list"
+    val_purch_2_manu_lot_type = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_manu_lot_type[LotSchema.MANU_LOT_KEY] = 1
 
-    # Manufacturer_Part_Number
-    val_purch_1_manu_pn_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_pn_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_PN_KEY)
+    val_purch_2_open_miss_field = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_open_miss_field.pop(LotSchema.OPEN_KEY)
+    val_purch_2_open_type = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_open_type[LotSchema.OPEN_KEY] = 1
 
-    val_purch_1_manu_pn_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_pn_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = None
+    val_purch_2_expiry_miss_field = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_expiry_miss_field.pop(LotSchema.EXPIRY_KEY)
 
-    val_purch_1_manu_pn_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_manu_pn_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = 1
+    val_purch_2_expiry_miss_value = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_expiry_miss_value[LotSchema.EXPIRY_KEY] = None
 
-    # Amount
-    val_purch_1_amount_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_amount_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.AMT_KEY)
+    val_purch_2_expiry_type = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_expiry_type[LotSchema.EXPIRY_KEY] = 1
 
-    val_purch_1_amount_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_amount_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = None
+    val_purch_2_empty_miss_field = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_empty_miss_field.pop(LotSchema.EMPTY_KEY)
 
-    val_purch_1_amount_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_amount_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = "wrong type"
+    val_purch_2_empty_type = copy.deepcopy(valid_purchased_lot_2)
+    val_purch_2_empty_type[LotSchema.EMPTY_KEY] = 1
 
-    # Units
-    val_purch_1_units_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_units_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.UNIT_KEY)
 
-    val_purch_1_units_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_units_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = None
+    # val_prep_lot_1 invalid permutations (purchased component only)
+    val_prep_1_chem_id_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_chem_id_miss_field.pop(LotSchema.PARENT_CHEM_ID_KEY)
 
-    val_purch_1_units_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_units_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = 1
+    val_prep_1_chem_id_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_chem_id_miss_value[LotSchema.PARENT_CHEM_ID_KEY] = None
 
-    val_purch_1_units_inval_list_entry = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_units_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = "Value of valid type but not in list"
+    val_prep_1_chem_id_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_chem_id_type[LotSchema.PARENT_CHEM_ID_KEY] = 1
 
-    # Container_Type
-    val_purch_1_container_miss_field = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_container_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.CONT_TYPE_KEY)
+    val_prep_1_amt_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_amt_miss_field.pop(LotSchema.AMT_KEY)
 
-    val_purch_1_container_miss_value = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_container_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = None
+    val_prep_1_amt_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_amt_miss_value[LotSchema.AMT_KEY] = None
 
-    val_purch_1_container_type = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_container_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = 1
+    val_prep_1_amt_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_amt_type[LotSchema.AMT_KEY] = "Invalid type"
 
-    val_purch_1_container_inval_list_entry = copy.deepcopy(val_purch_chem_1)
-    val_purch_1_container_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = "Value of valid type but not in list"
+    val_prep_1_units_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_units_miss_field.pop(LotSchema.UNIT_KEY)
 
+    val_prep_1_units_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_units_miss_value[LotSchema.UNIT_KEY] = None
 
-    # val_purch_chem_2
-    # Name
-    val_purch_2_name_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_name_miss_field.pop(ChemicalSchema.NAME_KEY)
+    val_prep_1_units_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_units_type[LotSchema.UNIT_KEY] = 1
 
-    val_purch_2_name_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_name_miss_value[ChemicalSchema.NAME_KEY] = None
+    val_prep_1_units_inval_list = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_units_inval_list[LotSchema.UNIT_KEY] = "Valid type that's not in list."
+    
+    val_prep_1_cont_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_cont_miss_field.pop(LotSchema.CONT_TYPE_KEY)
 
-    val_purch_2_name_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_name_type[ChemicalSchema.NAME_KEY] = 1
+    val_prep_1_cont_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_cont_miss_value[LotSchema.CONT_TYPE_KEY] = None
 
-    # CAS_Number
-    val_purch_2_cas_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
+    val_prep_1_cont_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_cont_type[LotSchema.CONT_TYPE_KEY] = 1
 
-    val_purch_2_cas_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_cas_miss_value[ChemicalSchema.CAS_KEY] = None
+    val_prep_1_cont_inval_list = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_cont_inval_list[LotSchema.UNIT_KEY] = "Valid type that's not in list."
 
-    val_purch_2_cas_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_cas_type[ChemicalSchema.CAS_KEY] = 1
+    val_prep_1_prep_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_prep_miss_field.pop(LotSchema.PREP_DATE_KEY)
 
-    # Classification
-    val_purch_2_classif_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
+    val_prep_1_prep_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_prep_miss_value[LotSchema.PREP_DATE_KEY] = None
 
-    val_purch_2_classif_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
+    val_prep_1_prep_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_prep_type[LotSchema.PREP_DATE_KEY] = 1
 
-    val_purch_2_classif_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
+    val_prep_1_expiry_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_expiry_miss_field.pop(LotSchema.EXPIRY_KEY)
 
-    val_purch_2_classif_inval_list_entry = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
+    val_prep_1_expiry_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_expiry_miss_value[LotSchema.EXPIRY_KEY] = None
 
-    # Source
-    val_purch_2_source_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
+    val_prep_1_expiry_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_expiry_type[LotSchema.EXPIRY_KEY] = 1
 
-    val_purch_2_source_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
+    val_prep_1_empty_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_empty_miss_field.pop(LotSchema.EMPTY_KEY)
 
-    val_purch_2_source_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_source_type[ChemicalSchema.SOURCE_KEY] = 1
+    val_prep_1_empty_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_empty_type[LotSchema.EMPTY_KEY] = 1
 
-    val_purch_2_source_inval_list_entry = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
+    val_prep_1_comp_1_lot_id_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_lot_id_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.COMP_LOT_KEY)
 
-    # Purchased_Fields
-    val_purch_2_purch_fields_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_purch_fields_miss_field.pop(ChemicalSchema.PURCH_FIELD_KEY)
+    val_prep_1_comp_1_lot_id_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_lot_id_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.COMP_LOT_KEY] = None
 
-    val_purch_2_purch_fields_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_purch_fields_miss_value[ChemicalSchema.PURCH_FIELD_KEY] = None
+    val_prep_1_comp_1_lot_id_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_lot_id_type[LotSchema.COMPONENTS_KEY][0][LotSchema.COMP_LOT_KEY] = 1
 
-    val_purch_2_purch_fields_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_purch_fields_type[ChemicalSchema.PURCH_FIELD_KEY] = 1
+    val_prep_1_comp_1_amt_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_amt_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.AMT_KEY)
 
-    # Manufacturer
-    val_purch_2_manu_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_KEY)
+    val_prep_1_comp_1_amt_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_amt_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.AMT_KEY] = None
 
-    val_purch_2_manu_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = None
+    val_prep_1_comp_1_amt_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_amt_type[LotSchema.COMPONENTS_KEY][0][LotSchema.AMT_KEY] = "Invalid type"
 
-    val_purch_2_manu_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = 1
+    val_prep_1_comp_1_units_miss_field = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_units_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.UNIT_KEY)
 
-    val_purch_2_manu_inval_list_entry = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_KEY] = "Value of valid type but not in list"
+    val_prep_1_comp_1_units_miss_value = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_units_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = None
 
-    # Manufacturer_Part_Number
-    val_purch_2_manu_pn_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_pn_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.MANU_PN_KEY)
+    val_prep_1_comp_1_units_type = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_units_type[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = 1
 
-    val_purch_2_manu_pn_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_pn_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = None
+    val_prep_1_comp_1_units_inval_list = copy.deepcopy(valid_prepared_lot_1)
+    val_prep_1_comp_1_units_inval_list[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = "Valid type that's not in list."
 
-    val_purch_2_manu_pn_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_manu_pn_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.MANU_PN_KEY] = 1
 
-    # Amount
-    val_purch_2_amount_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_amount_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.AMT_KEY)
+    # val_prep_lot_2 invalid permutations (checks both invalid prepased and prepared components)
+    val_prep_2_chem_id_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_chem_id_miss_field.pop(LotSchema.PARENT_CHEM_ID_KEY)
 
-    val_purch_2_amount_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_amount_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = None
+    val_prep_2_chem_id_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_chem_id_miss_value[LotSchema.PARENT_CHEM_ID_KEY] = None
 
-    val_purch_2_amount_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_amount_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY] = "wrong type"
+    val_prep_2_chem_id_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_chem_id_type[LotSchema.PARENT_CHEM_ID_KEY] = 1
 
-    # Units
-    val_purch_2_units_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_units_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.UNIT_KEY)
+    val_prep_2_amt_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_amt_miss_field.pop(LotSchema.AMT_KEY)
 
-    val_purch_2_units_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_units_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = None
+    val_prep_2_amt_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_amt_miss_value[LotSchema.AMT_KEY] = None
 
-    val_purch_2_units_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_units_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = 1
+    val_prep_2_amt_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_amt_type[LotSchema.AMT_KEY] = "Invalid type"
 
-    val_purch_2_units_inval_list_entry = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_units_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY] = "Value of valid type but not in list"
+    val_prep_2_units_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_units_miss_field.pop(LotSchema.UNIT_KEY)
 
-    # Container_Type
-    val_purch_2_container_miss_field = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_container_miss_field[ChemicalSchema.PURCH_FIELD_KEY].pop(ChemicalSchema.CONT_TYPE_KEY)
+    val_prep_2_units_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_units_miss_value[LotSchema.UNIT_KEY] = None
 
-    val_purch_2_container_miss_value = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_container_miss_value[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = None
+    val_prep_2_units_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_units_type[LotSchema.UNIT_KEY] = 1
 
-    val_purch_2_container_type = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_container_type[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = 1
+    val_prep_2_units_inval_list = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_units_inval_list[LotSchema.UNIT_KEY] = "Valid type that's not in list."
+    
+    val_prep_2_cont_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_cont_miss_field.pop(LotSchema.CONT_TYPE_KEY)
 
-    val_purch_2_container_inval_list_entry = copy.deepcopy(val_purch_chem_2)
-    val_purch_2_container_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = "Value of valid type but not in list"
+    val_prep_2_cont_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_cont_miss_value[LotSchema.CONT_TYPE_KEY] = None
 
+    val_prep_2_cont_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_cont_type[LotSchema.CONT_TYPE_KEY] = 1
 
+    val_prep_2_cont_inval_list = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_cont_inval_list[LotSchema.CONT_TYPE_KEY] = "Valid type that's not in list."
 
+    val_prep_2_prep_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_prep_miss_field.pop(LotSchema.PREP_DATE_KEY)
 
+    val_prep_2_prep_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_prep_miss_value[LotSchema.PREP_DATE_KEY] = None
 
-    # val_prep_chem_1
-    # Name
-    val_prep_1_name_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_name_miss_field.pop(ChemicalSchema.NAME_KEY)
+    val_prep_2_prep_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_prep_type[LotSchema.PREP_DATE_KEY] = 1
 
-    val_prep_1_name_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_name_miss_value[ChemicalSchema.NAME_KEY] = None
+    val_prep_2_expiry_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_expiry_miss_field.pop(LotSchema.EXPIRY_KEY)
 
-    val_prep_1_name_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_name_type[ChemicalSchema.NAME_KEY] = 1
+    val_prep_2_expiry_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_expiry_miss_value[LotSchema.EXPIRY_KEY] = None
 
-    # CAS_Number
-    val_prep_1_cas_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
+    val_prep_2_expiry_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_expiry_type[LotSchema.EXPIRY_KEY] = 1
 
-    val_prep_1_cas_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_cas_miss_value[ChemicalSchema.CAS_KEY] = None
+    val_prep_2_empty_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_empty_miss_field.pop(LotSchema.EMPTY_KEY)
 
-    val_prep_1_cas_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_cas_type[ChemicalSchema.CAS_KEY] = 1
+    val_prep_2_empty_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_empty_type[LotSchema.EMPTY_KEY] = 1
 
-    # Classification
-    val_prep_1_classif_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
+    val_prep_2_comp_1_lot_id_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_lot_id_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.COMP_LOT_KEY)
 
-    val_prep_1_classif_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
+    val_prep_2_comp_1_lot_id_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_lot_id_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.COMP_LOT_KEY] = None
 
-    val_prep_1_classif_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
+    val_prep_2_comp_1_lot_id_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_lot_id_type[LotSchema.COMPONENTS_KEY][0][LotSchema.COMP_LOT_KEY] = 1
 
-    val_prep_1_classif_inval_list_entry = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
+    val_prep_2_comp_1_amt_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_amt_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.AMT_KEY)
 
-    # Storage_Condition
-    val_prep_1_stor_cond_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_stor_cond_miss_field.pop(ChemicalSchema.STORAGE_KEY)
+    val_prep_2_comp_1_amt_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_amt_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.AMT_KEY] = None
 
-    val_prep_1_stor_cond_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_stor_cond_miss_value[ChemicalSchema.STORAGE_KEY] = None
+    val_prep_2_comp_1_amt_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_amt_type[LotSchema.COMPONENTS_KEY][0][LotSchema.AMT_KEY] = "Invalid type"
 
-    val_prep_1_stor_cond_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_stor_cond_type[ChemicalSchema.STORAGE_KEY] = 1
+    val_prep_2_comp_1_units_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_units_miss_field[LotSchema.COMPONENTS_KEY][0].pop(LotSchema.UNIT_KEY)
 
-    val_prep_1_stor_cond_inval_list_entry = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_stor_cond_inval_list_entry[ChemicalSchema.STORAGE_KEY] = "Value of valid type but not in list"
+    val_prep_2_comp_1_units_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_units_miss_value[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = None
 
-    # Source
-    val_prep_1_source_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
+    val_prep_2_comp_1_units_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_units_type[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = 1
 
-    val_prep_1_source_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
+    val_prep_2_comp_1_units_inval_list = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_1_units_inval_list[LotSchema.COMPONENTS_KEY][0][LotSchema.UNIT_KEY] = "Valid type that's not in list."
 
-    val_prep_1_source_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_source_type[ChemicalSchema.SOURCE_KEY] = 1
+    val_prep_2_comp_2_lot_id_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_lot_id_miss_field[LotSchema.COMPONENTS_KEY][1].pop(LotSchema.COMP_LOT_KEY)
 
-    val_prep_1_source_inval_list_entry = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
+    val_prep_2_comp_2_lot_id_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_lot_id_miss_value[LotSchema.COMPONENTS_KEY][1][LotSchema.COMP_LOT_KEY] = None
 
-    # Prepared_Fields
-    val_prep_1_prep_fields_miss_field = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_prep_fields_miss_field.pop(ChemicalSchema.PREP_FIELD_KEY)
+    val_prep_2_comp_2_lot_id_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_lot_id_type[LotSchema.COMPONENTS_KEY][1][LotSchema.COMP_LOT_KEY] = 1
 
-    val_prep_1_prep_fields_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_prep_fields_miss_value[ChemicalSchema.PREP_FIELD_KEY] = None
+    val_prep_2_comp_2_amt_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_amt_miss_field[LotSchema.COMPONENTS_KEY][1].pop(LotSchema.AMT_KEY)
 
-    val_prep_1_prep_fields_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_prep_fields_type[ChemicalSchema.PREP_FIELD_KEY] = 1
+    val_prep_2_comp_2_amt_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_amt_miss_value[LotSchema.COMPONENTS_KEY][1][LotSchema.AMT_KEY] = None
 
-    # Method_Step_Reference
-    val_prep_1_meth_miss_field = copy.deepcopy(val_prep_chem_1)
-    # This particular error actually generates "Missing required value" for "Prepared_Fields"
-    # because it removes the only field in "Prepared_Fields" and leaves an empty dictionary.
-    # Rewrite test is schema is ever updated to allow multiple fields within Prepared_Fields.
-    val_prep_1_meth_miss_field[ChemicalSchema.PREP_FIELD_KEY].pop(ChemicalSchema.METH_REF_KEY)
+    val_prep_2_comp_2_amt_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_amt_type[LotSchema.COMPONENTS_KEY][1][LotSchema.AMT_KEY] = "Invalid type"
 
-    val_prep_1_meth_miss_value = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_meth_miss_value[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = None
+    val_prep_2_comp_2_units_miss_field = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_units_miss_field[LotSchema.COMPONENTS_KEY][1].pop(LotSchema.UNIT_KEY)
 
-    val_prep_1_meth_type = copy.deepcopy(val_prep_chem_1)
-    val_prep_1_meth_type[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = 1
+    val_prep_2_comp_2_units_miss_value = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_units_miss_value[LotSchema.COMPONENTS_KEY][1][LotSchema.UNIT_KEY] = None
 
-    invalid_chemicals = [
-        # Invalid purchased chemical 1 permutations
-        (val_purch_1_name_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_name_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_name_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_cas_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_cas_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_cas_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_classif_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_classif_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_classif_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_classif_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_1_source_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),               # Payload 10
-        (val_purch_1_source_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_source_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_source_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_1_purch_fields_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_purch_fields_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_purch_fields_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_manu_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_manu_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_manu_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_manu_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),         # Payload 20
-        (val_purch_1_manu_pn_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_manu_pn_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_manu_pn_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_amount_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_amount_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_amount_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_units_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),        # Paylaod 30
-        (val_purch_1_container_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_1_container_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_1_container_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_1_container_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+    val_prep_2_comp_2_units_type = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_units_type[LotSchema.COMPONENTS_KEY][1][LotSchema.UNIT_KEY] = 1
+
+    val_prep_2_comp_2_units_inval_list = copy.deepcopy(valid_prepared_lot_2)
+    val_prep_2_comp_2_units_inval_list[LotSchema.COMPONENTS_KEY][1][LotSchema.UNIT_KEY] = "Valid type that's not in list."
+
+    # By now I've learned that I can inclue a name with the payload and expected error message,
+    # but I declined to do so because it's a lot more copy/pasting for little gain right now.
+    invalid_lots = [
+        # Invalid purchased lot 1 permutations
+        (val_purch_1_chem_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_1_chem_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_1_chem_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_1_manu_lot_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_1_manu_lot_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_1_manu_lot_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_1_open_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_1_open_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_1_expiry_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_1_expiry_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_1_expiry_type, ValidationErrorCodes.WRONG_TYPE_MSG),                     # Payload 10
+        (val_purch_1_empty_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_1_empty_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+
+        # Invalid purchased lot 2 permutations
+        (val_purch_2_chem_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_2_chem_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_2_chem_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_2_manu_lot_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_2_manu_lot_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_2_manu_lot_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_2_open_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),  
+        (val_purch_2_open_type, ValidationErrorCodes.WRONG_TYPE_MSG),                       # Payload 20
+        (val_purch_2_expiry_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_2_expiry_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_purch_2_expiry_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_purch_2_empty_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_purch_2_empty_type, ValidationErrorCodes.WRONG_TYPE_MSG),
         
-        # Invalid purchased chemical 2 permutations
-        (val_purch_2_name_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_name_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_name_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_cas_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_cas_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_cas_type, ValidationErrorCodes.WRONG_TYPE_MSG),                            # Payload 40
-        (val_purch_2_classif_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_classif_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_classif_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_classif_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_2_source_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_source_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_source_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_source_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_2_purch_fields_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_purch_fields_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),         # Payload 50
-        (val_purch_2_purch_fields_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_manu_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_manu_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_manu_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_manu_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_2_manu_pn_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_manu_pn_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_manu_pn_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_amount_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_amount_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),               # Paylaod 60
-        (val_purch_2_amount_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_units_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_purch_2_container_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_purch_2_container_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_purch_2_container_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_purch_2_container_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        # Invalid prepared lot 1 permutations
+        (val_prep_1_chem_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_chem_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_chem_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_amt_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_amt_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),               # Payload 30
+        (val_prep_1_amt_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_units_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_1_cont_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_cont_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_cont_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_cont_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_1_prep_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),              # Payload 40
+        (val_prep_1_prep_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_prep_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_expiry_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_expiry_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_expiry_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_empty_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),  
+        (val_prep_1_empty_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_comp_1_lot_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_comp_1_lot_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_comp_1_lot_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),               # Payload 50
+        (val_prep_1_comp_1_amt_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_comp_1_amt_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_comp_1_amt_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_comp_1_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_1_comp_1_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_1_comp_1_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_1_comp_1_units_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
 
-        # Invalid prepared chemical 1 permutations
-        (val_prep_1_name_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),                  # Payload 70
-        (val_prep_1_name_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_name_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_prep_1_cas_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_prep_1_cas_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_cas_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_prep_1_classif_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_prep_1_classif_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_classif_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_prep_1_classif_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_prep_1_stor_cond_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),             # Payload 80
-        (val_prep_1_stor_cond_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_stor_cond_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_prep_1_stor_cond_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_prep_1_source_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_prep_1_source_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_source_type, ValidationErrorCodes.WRONG_TYPE_MSG),
-        (val_prep_1_source_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
-        (val_prep_1_prep_fields_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
-        (val_prep_1_prep_fields_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_prep_fields_type, ValidationErrorCodes.WRONG_TYPE_MSG),                     # Payload 90
-        (val_prep_1_meth_miss_field, ValidationErrorCodes.MISS_REQ_VALUE_MSG),  # See note in this payloads creation
-        (val_prep_1_meth_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_meth_type, ValidationErrorCodes.WRONG_TYPE_MSG)
+        # Invalid prepared lot 2 permutations
+        (val_prep_2_chem_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_chem_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_chem_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),                     # Payload 60
+        (val_prep_2_amt_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_amt_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_amt_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_units_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_cont_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_cont_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_cont_type, ValidationErrorCodes.WRONG_TYPE_MSG),                        # Payload 70
+        (val_prep_2_cont_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_prep_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_prep_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_prep_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_expiry_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_expiry_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_expiry_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_empty_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_empty_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_1_lot_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),     # Payload 80
+        (val_prep_2_comp_1_lot_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_1_lot_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_1_amt_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_comp_1_amt_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_1_amt_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_1_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_comp_1_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_1_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_1_units_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_comp_2_lot_id_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),     # Payload 90
+        (val_prep_2_comp_2_lot_id_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_2_lot_id_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_2_amt_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_comp_2_amt_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_2_amt_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_2_units_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_comp_2_units_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_comp_2_units_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_comp_2_units_inval_list, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
     ]
 
-    return invalid_chemicals
+    return invalid_lots

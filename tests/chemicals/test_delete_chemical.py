@@ -47,7 +47,7 @@ def test_delete_chemical(
     assert delete_reponse_3.status_code == 404
     assert delete_reponse_4.status_code == 404
 
-    # Confirm that GET requests with malformed ObjectId return 400
-    invalid_id_response_1 = client.get(f"{chemicals_address}/1")
+    # Confirm that DELETE requests with malformed ObjectId return 400
+    invalid_id_response_1 = client.delete(f"{chemicals_address}/1")
 
     assert invalid_id_response_1.status_code == 400

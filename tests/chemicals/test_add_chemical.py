@@ -666,7 +666,7 @@ def test_add_chemical(
         prep_chem_2_miss_field_type
     ):
 
-    # HTTP code 200 testing
+    # HTTP code 201 testing
 
     post_chem_response_1 = client.post(chemicals_address, json=valid_purchased_chemical_1)
     post_chem_response_2 = client.post(chemicals_address, json=valid_purchased_chemical_2)
