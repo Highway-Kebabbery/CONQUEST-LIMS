@@ -4,6 +4,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime, timezone
 import copy, re
+from typing import List
 
 """
 # Notes to a hiring manager if somehow I apply to a job before I finish:
@@ -477,6 +478,10 @@ the initial checks because it's an edge case).
 to completely replace one record (say, a methanol chemical) with another (replacing said methanol record with information for an acetone product).
 This and the addition of a "Removed" flag to replace true deletion would prevent the complete disappearance of records because the names would always be available.
 Although a record could be replaced in every field but the "Name," it would be unusable as a replacement because of the locked name field.
+* Prevent "Open Dates" from being future dates/times.
+* Prevent empty dates from being earlier than open or prepared dates
+* Prevent unopened lots from being used as compnents
+* Prevent expired lots from being opened
 """
 
 app = Flask(__name__)
@@ -928,41 +933,63 @@ class ChemicalSchema():
             self.__mongo_id = self._chem_request_data.pop("_id")
     
     @staticmethod
-    def query_current_totals(lots_collection, chemical_id):
+    def query_current_totals(
+        chemicals_collection,
+        lots_collection,
+        chem_ids: List[str],
+        update_records=False
+    ):
         # This function sets and returns the current avail total and 
         # current avail open for a given chemical_id. It's intended to be called either
-        # internally or externally.
+        # internally or externally. For PUT requests it's designed to take a list of
+        # one chemical primary key and return the aggregate totals. For GET requests
+        # it will update the records in the list, though it still returns the totals
+        # from the last id edited. The GET request must re-search the database to 
+        # pull updated totals
         # 
+        # cham_ids is a list of one or more chemical primary keys
+        # request_method is a string that should correspond to an HTTP request
         # lots_collection is type pymongo.collection.Collection
-        # 
-        # related_lot is ojbect of type LotSchema (to pass key names)
-        
-        now = datetime.now(timezone.utc)
+        # Update_records instructs the method to update the aggregate fields in the database.
+        for id in chem_ids:
+            if isinstance(id, str):
+                ObjectId(id)
+            now = datetime.now(timezone.utc)
+            
+            current_avail_total = lots_collection.count_documents({
+                "$and": [
+                    {LotSchema.PARENT_CHEM_ID_KEY: id},
+                    {LotSchema.EMPTY_KEY: {"$eq": None}},
+                    {LotSchema.EXPIRY_KEY: {"$gt": now}}
+                ]
+            })
 
-        current_avail_total = lots_collection.count_documents({
-            "$and": [
-                {LotSchema.PARENT_CHEM_ID_KEY: ObjectId(chemical_id)},
-                {LotSchema.EMPTY_KEY: {"$eq": None}},
-                {LotSchema.EXPIRY_KEY: {"$gt": now}}
-            ]
-        })
+            current_avail_open = lots_collection.count_documents({
+                "$and": [
+                    {LotSchema.PARENT_CHEM_ID_KEY: id},
+                    {LotSchema.EMPTY_KEY: {"$eq": None}},
+                    {LotSchema.EXPIRY_KEY: {"$gt": now}},
+                    {"$or": [
+                        {
+                            ChemicalSchema.SOURCE_KEY: "Purchased",
+                            LotSchema.OPEN_KEY: {"$ne": None}
+                        },
+                        {
+                            ChemicalSchema.SOURCE_KEY: "Prepared"
+                        }
+                    ]}
+                ]
+            })
 
-        current_avail_open = lots_collection.count_documents({
-            "$and": [
-                {LotSchema.PARENT_CHEM_ID_KEY: ObjectId(chemical_id)},
-                {LotSchema.EMPTY_KEY: {"$eq": None}},
-                {LotSchema.EXPIRY_KEY: {"$gt": now}},
-                {"$or": [
-                    {
-                        ChemicalSchema.SOURCE_KEY: "Purchased",
-                        LotSchema.OPEN_KEY: {"$ne": None}
-                    },
-                    {
-                        ChemicalSchema.SOURCE_KEY: "Prepared"
-                    }
-                ]}
-            ]
-        })
+            if update_records == True:
+                # Update record in database with new totals
+                chemicals_collection.update_one(
+                    {ChemicalSchema.CHEM_ID_KEY: id},
+                    {"$set": {
+                        ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
+                        ChemicalSchema.AVAIL_OPEN_KEY: current_avail_open
+                    }}
+                )
 
         return {
             ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
@@ -1255,8 +1282,13 @@ class ChemicalSchema():
             record[self.AVAIL_TOTAL_KEY] = 0
             record[self.AVAIL_OPEN_KEY] = 0
         elif req_method.upper() == "PUT":
-            totals = ChemicalSchema.query_current_totals(self._lots_collection, chemical_id)
-
+            totals = ChemicalSchema.query_current_totals(
+                self._chemicals_collection,
+                self._lots_collection,
+                [chemical_id],
+                req_method
+            )
+            
             record[self.AVAIL_TOTAL_KEY] = totals[self.AVAIL_TOTAL_KEY]
             record[self.AVAIL_OPEN_KEY] = totals[self.AVAIL_OPEN_KEY]
 
@@ -1879,6 +1911,12 @@ class LotSchema(ChemicalSchema):
                     
                 record[self.COMPONENTS_KEY].append(component_attrs)
 
+        ChemicalSchema.query_current_totals(
+            self._chemicals_collection,
+            self._lots_collection,
+            [record[self.PARENT_CHEM_ID_KEY]],
+            True
+        )
 
         return record
 
@@ -1894,8 +1932,24 @@ class LotSchema(ChemicalSchema):
 # Fetch all chemical documents
 @app.route("/chemicals", methods=["GET"])
 def get_all_chemicals():
+    # Update aggregate fields to refresh data
+    all_chem_ids = [
+        chem[ChemicalSchema.CHEM_ID_KEY] for chem in app.chemicals.find(
+            {},
+            {ChemicalSchema.CHEM_ID_KEY: 1}
+        )
+    ]
+    print(all_chem_ids)
+    ChemicalSchema.query_current_totals(
+        app.chemicals,
+        app.lots,
+        all_chem_ids,
+        request.method
+    )
+
+    # Find and return refreshed records
     all_chemicals = list(app.chemicals.find())
-    
+
     for chemical in all_chemicals:
         # Type ObjectId not JSON serializable
         chemical[ChemicalSchema.CHEM_ID_KEY] = str(
