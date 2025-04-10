@@ -17,6 +17,7 @@ def test_add_lot(
     val_prep_lots,
     gen_lot_extra_fields,
     gen_lots_bad_dates,
+    gen_lots_good_optional_dates,
     gen_lots_miss_comp,
     gen_multiple_errors
 ):
@@ -78,20 +79,35 @@ def test_add_lot(
     assert empty_body_reponse.status_code == 400
 
 
+    ## Valid date strings work in optional fields
+    ## (Optional date fields left blank in the rest of the happy-path testing)
+    purch_lot_1_valid_open = gen_lots_good_optional_dates[0]
+    purch_lot_1_valid_empty = gen_lots_good_optional_dates[1]
+    purch_lot_2_valid_open = gen_lots_good_optional_dates[2]
+    purch_lot_2_valid_empty = gen_lots_good_optional_dates[3]
+    prep_lot_1_valid_empty = gen_lots_good_optional_dates[4]
+    prep_lot_2_valid_empty = gen_lots_good_optional_dates[5]
+
+    good_opt_date_resp_1 = client.post(lots_address, json=purch_lot_1_valid_open)
+    good_opt_date_resp_2 = client.post(lots_address, json=purch_lot_1_valid_empty)
+    good_opt_date_resp_3 = client.post(lots_address, json=purch_lot_2_valid_open)
+    good_opt_date_resp_4 = client.post(lots_address, json=purch_lot_2_valid_empty)
+    good_opt_date_resp_5 = client.post(lots_address, json=prep_lot_1_valid_empty)
+    good_opt_date_resp_6 = client.post(lots_address, json=prep_lot_2_valid_empty)
+
+    assert good_opt_date_resp_1.status_code == 201
+    assert good_opt_date_resp_2.status_code == 201
+    assert good_opt_date_resp_3.status_code == 201
+    assert good_opt_date_resp_4.status_code == 201
+    assert good_opt_date_resp_5.status_code == 201
+    assert good_opt_date_resp_6.status_code == 201
+    
+
     # HTTP code 422 response body Testing
     """
     Ensure all valid HTTP requests that fail LotSchema validation return 422
     and the appropriate error message in the request body. Missing field, missing
     value, wrong type, and invalid list entry are handled in test_invalid_lots().
-    
-#REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE Remove below list from section after completion    
-    * No unexpected keys arrive in a lot request or its components.
-    * Confirm the existence of the lot's parent chemical in the database.
-    * Confirm that date strings are in ISO 8601 format.
-    * Confirm the presence of >= 1 components on prepared lots.
-    * Confirm the existence lot records for lots used as components in prepared lots.
-    * Confirm that primary keys are not malformed.
-    * Confirm that primary keys match in the request body and address.
     """
     
     ## Unexpected fields
@@ -259,7 +275,7 @@ def test_add_lot(
     assert data_24["error"].startswith(ValidationErrorCodes.WRONG_DATE_FORMAT_MSG)
     assert bad_date_resp_24.status_code == 422
 
-    
+
     ## Prepared lots contain at least one component
     prep_lot_1_miss_comp = copy.deepcopy(gen_lots_miss_comp[0])
     prep_lot_2_miss_comp = copy.deepcopy(gen_lots_miss_comp[1])
@@ -339,8 +355,30 @@ def test_add_lot(
 
 
 # Remaining 422 status code testing:
-## Missing fields, missing values, wrong types, and invalid list entries
-def test_invalid_lots(
+def test_add_invalid_purch_lots(
+    client,
+    post_all_lists,
+    val_purch_chems,
+    val_prep_chems,
+    val_purch_lots,
+    val_prep_lots,
+    invalid_lots
+):
+    ## Missing fields, missing values, wrong types, and invalid list entries
+    for payload, expected_error_prefix in invalid_lots["invalid_purch_lots"]:
+        response = client.post(lots_address, json=copy.deepcopy(payload))
+        data = response.get_json()
+
+        if not "error" in data \
+            or not data["error"].startswith(str(expected_error_prefix)):
+            print(f"Payload #{invalid_lots.index((payload, expected_error_prefix))}")
+            print(f"Payload after POST: {payload}")
+            print(f"Expected error: {expected_error_prefix}")
+            print(f"Returned error: {data['error']}")
+        assert data["error"].startswith(str(expected_error_prefix))
+        assert response.status_code == 422
+
+def test_add_invalid_prep_lots(
     client,
     post_all_lists,
     val_purch_chems,
@@ -352,8 +390,7 @@ def test_invalid_lots(
     # I opted to skip using parametrize so that I could actually use the giant list of
     # invalid lots as a fixture. It got too complicated with the need to dynamically generate
     # lot primary keys after testing began.
-    for payload, expected_error_prefix in invalid_lots:
-        print(f"Payload #{invalid_lots.index((payload, expected_error_prefix))} before POST: {payload}")
+    for payload, expected_error_prefix in invalid_lots["invalid_prep_lots"]:
         response = client.post(lots_address, json=copy.deepcopy(payload))
         data = response.get_json()
 

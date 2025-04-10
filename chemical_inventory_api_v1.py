@@ -238,6 +238,8 @@ General schema:
             "Units": str,
             "Container_Type": str
         }
+        "Available_Total": int,               # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
+        "Available_Open": int                 # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
     }
 * Prepared chemicals:
     record = {
@@ -250,6 +252,8 @@ General schema:
         "Prepared_Fields": {
             "Method_Step_Reference": str
         }
+        "Available_Total": int,           # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
+        "Available_Open": int             # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
     }
 * Purchased lots:
     record = {
@@ -1985,6 +1989,7 @@ def update_chemical(chemical_id):
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
 
             except InvalidId:
+                # This is a failsafe. validate_chemical_forms() handles this case.
                 response = jsonify({"error": "Invalid ID format"}), 400
         elif form_val[1] == 5:
             msg = ValidationErrorCodes.gen_val_err_msg(form_val)
@@ -2112,7 +2117,7 @@ def update_lot(lot_id):
         }), 422
     elif not data[LotSchema.LOT_ID_KEY] == lot_id:
         response = jsonify({"error": "Request body primary key does not match address " \
-            f"<lot_id>: {data[ListsSchema.LIST_NAME_KEY]}, {lot_id}"}), 422
+            f"<lot_id>: {data[LotSchema.LOT_ID_KEY]}, {lot_id}"}), 422
     else:
         # Validate data in request
         updated_lot = LotSchema(
@@ -2124,7 +2129,7 @@ def update_lot(lot_id):
 
         if form_val[1] == 0:
             try:
-                record = updated_lot.build_lot_record(lot_id)
+                record = updated_lot.build_lot_record()
 
                 result = app.lots.update_one(
                     {LotSchema.LOT_ID_KEY: ObjectId(lot_id)},
@@ -2134,8 +2139,9 @@ def update_lot(lot_id):
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
             
             except InvalidId:
+                # This is a failsafe. validate_lot_forms() handles this case.
                 response = jsonify({"error": "Invalid ID format"}), 400
-        elif form_val[1] == 8:
+        elif form_val[1] == 5 or form_val[1] == 8:
             msg = ValidationErrorCodes.gen_val_err_msg(form_val)
             response = jsonify({"error": msg}), 404
         else:

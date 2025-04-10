@@ -92,149 +92,8 @@ import os
 # Had to explicitly add root to sys.path for pytest to find the Flask app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-import pytest, copy, mongomock
-from flask import Flask
-from pymongo import MongoClient
-from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema, ValidationErrorCodes
-from chemical_inventory_api_v1 import app as flask_app
-
-@pytest.fixture()
-def app():
-    flask_app.config.update({
-        "TESTING": True
-    })
-
-    flask_app.mongo_client = mongomock.MongoClient()
-    flask_app.db = flask_app.mongo_client.conquest_lims
-    flask_app.chemicals = flask_app.db.chemicals
-    flask_app.lots = flask_app.db.lots
-    flask_app.lists = flask_app.db.lists
-    
-    with flask_app.mongo_client as client:
-        # Not technically necessary since mongomock is in-memory, but left as reminder
-        # when I check back that it's important to use something like `with` to clean
-        # up connections after testing. This is a learning project for me.
-        yield flask_app
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-@pytest.fixture
-def post_all_lists(client):
-    lists_address = "/lists"
-    
-    # Validated lists
-    classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
-    container_types = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CONT_TYPES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Ampoule", "Autosampler vial", "Bottle", "Vial", "Instrument", "N/A"]}
-    manufacturers = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.MANU_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "J.T. Baker", "Milli-Q", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
-    sources = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.SOURCES_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Purchased", "Prepared"]}
-    storage_conditions = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.STOR_COND_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
-    units = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.UNITS_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["g", "kg", "L", "mL", "µL", "N/A"]}
-
-    # POST valid lists and confirm success
-    post_list_response_1 = client.post(lists_address, json=classifications)
-    post_list_response_2 = client.post(lists_address, json=container_types)
-    post_list_response_3 = client.post(lists_address, json=manufacturers)
-    post_list_response_4 = client.post(lists_address, json=sources)
-    post_list_response_5 = client.post(lists_address, json=storage_conditions)
-    post_list_response_6 = client.post(lists_address, json=units)
-
-    assert post_list_response_1.status_code == 201
-    assert post_list_response_2.status_code == 201
-    assert post_list_response_3.status_code == 201
-    assert post_list_response_4.status_code == 201
-    assert post_list_response_5.status_code == 201
-    assert post_list_response_6.status_code == 201
-
-
-@pytest.fixture()
-def valid_purchased_chemical_1():
-    valid_purchased_chemical_1 = {
-        ChemicalSchema.NAME_KEY: "Methanol (Certified ACS), Fisher Chemical",
-        ChemicalSchema.CAS_KEY: "67-56-1",
-        ChemicalSchema.CLASSIF_KEY: "Flammable solvent",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "A412-4",
-            ChemicalSchema.AMT_KEY: 4,
-            ChemicalSchema.UNIT_KEY: "L",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
-    return valid_purchased_chemical_1
-
-@pytest.fixture()
-def valid_purchased_chemical_2():
-    valid_purchased_chemical_2 = {
-        ChemicalSchema.NAME_KEY: "Water, Optima LC/MS Grade, Fisher Chemical",
-        ChemicalSchema.CAS_KEY: "7732-18-5",
-        ChemicalSchema.CLASSIF_KEY: "Water",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "W64",
-            ChemicalSchema.AMT_KEY: 4,
-            ChemicalSchema.UNIT_KEY: "L",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
-    return valid_purchased_chemical_2
-
-@pytest.fixture()
-def valid_purchased_chemical_3():
-    valid_purchased_chemical_3 = {
-        ChemicalSchema.NAME_KEY: "Phosphoric acid, J.T. Baker",
-        ChemicalSchema.CAS_KEY: "7664-38-2",
-        ChemicalSchema.CLASSIF_KEY: "Weak acid",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Purchased",
-        ChemicalSchema.PURCH_FIELD_KEY: {
-            ChemicalSchema.MANU_KEY: "Fisher Scientific",
-            ChemicalSchema.MANU_PN_KEY: "02-003-602",
-            ChemicalSchema.AMT_KEY: 500,
-            ChemicalSchema.UNIT_KEY: "mL",
-            ChemicalSchema.CONT_TYPE_KEY: "Bottle"
-        }
-    }
-
-    return valid_purchased_chemical_3
-
-@pytest.fixture()
-def valid_prepared_chemical_1():
-    valid_prepared_chemical_1 = {
-        ChemicalSchema.NAME_KEY: "Mobile Phase A: Water, 0.1 % Phosphoric Acid",
-        ChemicalSchema.CAS_KEY: "7732-18-5, 7664-38-2",
-        ChemicalSchema.CLASSIF_KEY: "Mobile phase",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Prepared",
-        ChemicalSchema.PREP_FIELD_KEY: {
-            ChemicalSchema.METH_REF_KEY: "SOP-00123.4.3.i"
-            }
-    }
-
-    return valid_prepared_chemical_1
-
-@pytest.fixture()
-def valid_prepared_chemical_2():
-    # Prepared chemical using only purchased components
-    valid_prepared_chemical_2 = {
-        ChemicalSchema.NAME_KEY: "Mobile Phase B: 40% Methanol in Water, 0.1 % Phosphoric Acid",
-        ChemicalSchema.CAS_KEY: "67-56-1, 7732-18-5",
-        ChemicalSchema.CLASSIF_KEY: "Mobile phase",
-        ChemicalSchema.STORAGE_KEY: "Ambient",
-        ChemicalSchema.SOURCE_KEY: "Prepared",
-        ChemicalSchema.PREP_FIELD_KEY: {
-            ChemicalSchema.METH_REF_KEY: "SOP-00123.4.3.ii"
-            }
-    }
-
-    return valid_prepared_chemical_2
+import pytest, copy
+from chemical_inventory_api_v1 import ChemicalSchema, ValidationErrorCodes
 
 @pytest.fixture()
 def purch_chem_1_extra_field(valid_purchased_chemical_1):
@@ -300,12 +159,6 @@ def prep_chem_2_miss_field_type(valid_prepared_chemical_2):
     prep_chem_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
     return prep_chem_2_miss_field_type
 
-
-
-
-
-
-
 @pytest.fixture()
 def invalid_chemicals(
     valid_purchased_chemical_1,
@@ -320,12 +173,50 @@ def invalid_chemicals(
 
     Returns a list of tuples containing (payload, expected error) of type
     (dict, str)
-
-    Ideally this would be generated here as a fixture, but I couldn't get it to 
-    work inside  my tests when using pytest.mark.parametrize. I copied/pasted into
-    the tests that use it, but in the future would like to learn how to pass in
-    the fixture.
     """
+
+    # Unexpected Field
+    val_purch_1_container_extra_field = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_container_extra_field["foo"] = "bar"
+    val_purch_1_container_extra_field["fizz"] = "buzz"
+
+    # Unexpected Field
+    val_purch_2_container_extra_field = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_container_extra_field["foo"] = "bar"
+    val_purch_2_container_extra_field["fizz"] = "buzz"
+
+    # Unexpected Field
+    val_prep_1_container_extra_field = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_container_extra_field["foo"] = "bar"
+    val_prep_1_container_extra_field["fizz"] = "buzz"
+
+    # Unexpected Field
+    val_prep_2_container_extra_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_container_extra_field["foo"] = "bar"
+    val_prep_2_container_extra_field["fizz"] = "buzz"
+
+    # Do two error return the first-encountered error as expected?
+    val_purch_1_miss_field_type = copy.deepcopy(valid_purchased_chemical_1)
+    val_purch_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    val_purch_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
+
+    # Do two error return the first-encountered error as expected?
+    val_purch_2_miss_field_type = copy.deepcopy(valid_purchased_chemical_2)
+    val_purch_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    val_purch_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
+
+    # Do two error return the first-encountered error as expected?
+    val_prep_1_miss_field_type = copy.deepcopy(valid_prepared_chemical_1)
+    val_prep_1_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    val_prep_1_miss_field_type[ChemicalSchema.CAS_KEY] = True
+
+    # Do two error return the first-encountered error as expected?
+    val_prep_2_miss_field_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_miss_field_type.pop(ChemicalSchema.NAME_KEY)
+    val_prep_2_miss_field_type[ChemicalSchema.CAS_KEY] = True
+
+
+
 
     # valid_purchased_chemical_1
     # Name
@@ -442,6 +333,8 @@ def invalid_chemicals(
 
     val_purch_1_container_inval_list_entry = copy.deepcopy(valid_purchased_chemical_1)
     val_purch_1_container_inval_list_entry[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.CONT_TYPE_KEY] = "Value of valid type but not in list"
+
+
 
 
     # valid_purchased_chemical_2
@@ -563,7 +456,6 @@ def invalid_chemicals(
 
 
 
-
     # valid_prepared_chemical_1
     # Name
     val_prep_1_name_miss_field = copy.deepcopy(valid_prepared_chemical_1)
@@ -646,6 +538,93 @@ def invalid_chemicals(
 
     val_prep_1_meth_type = copy.deepcopy(valid_prepared_chemical_1)
     val_prep_1_meth_type[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = 1
+
+
+
+
+    # valid_prepared_chemical_2
+    # Name
+    val_prep_2_name_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_name_miss_field.pop(ChemicalSchema.NAME_KEY)
+
+    val_prep_2_name_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_name_miss_value[ChemicalSchema.NAME_KEY] = None
+
+    val_prep_2_name_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_name_type[ChemicalSchema.NAME_KEY] = 1
+
+    # CAS_Number
+    val_prep_2_cas_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_cas_miss_field.pop(ChemicalSchema.CAS_KEY)
+
+    val_prep_2_cas_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_cas_miss_value[ChemicalSchema.CAS_KEY] = None
+
+    val_prep_2_cas_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_cas_type[ChemicalSchema.CAS_KEY] = 1
+
+    # Classification
+    val_prep_2_classif_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_classif_miss_field.pop(ChemicalSchema.CLASSIF_KEY)
+
+    val_prep_2_classif_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_classif_miss_value[ChemicalSchema.CLASSIF_KEY] = None
+
+    val_prep_2_classif_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_classif_type[ChemicalSchema.CLASSIF_KEY] = 1
+
+    val_prep_2_classif_inval_list_entry = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_classif_inval_list_entry[ChemicalSchema.CLASSIF_KEY] = "Value of valid type but not in list"
+
+    # Storage_Condition
+    val_prep_2_stor_cond_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_stor_cond_miss_field.pop(ChemicalSchema.STORAGE_KEY)
+
+    val_prep_2_stor_cond_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_stor_cond_miss_value[ChemicalSchema.STORAGE_KEY] = None
+
+    val_prep_2_stor_cond_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_stor_cond_type[ChemicalSchema.STORAGE_KEY] = 1
+
+    val_prep_2_stor_cond_inval_list_entry = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_stor_cond_inval_list_entry[ChemicalSchema.STORAGE_KEY] = "Value of valid type but not in list"
+
+    # Source
+    val_prep_2_source_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_source_miss_field.pop(ChemicalSchema.SOURCE_KEY)
+
+    val_prep_2_source_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_source_miss_value[ChemicalSchema.SOURCE_KEY] = None
+
+    val_prep_2_source_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_source_type[ChemicalSchema.SOURCE_KEY] = 1
+
+    val_prep_2_source_inval_list_entry = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_source_inval_list_entry[ChemicalSchema.SOURCE_KEY] = "Value of valid type but not in list"
+
+    # Prepared_Fields
+    val_prep_2_prep_fields_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_prep_fields_miss_field.pop(ChemicalSchema.PREP_FIELD_KEY)
+
+    val_prep_2_prep_fields_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_prep_fields_miss_value[ChemicalSchema.PREP_FIELD_KEY] = None
+
+    val_prep_2_prep_fields_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_prep_fields_type[ChemicalSchema.PREP_FIELD_KEY] = 1
+
+    # Method_Step_Reference
+    val_prep_2_meth_miss_field = copy.deepcopy(valid_prepared_chemical_2)
+    # This particular error actually generates "Missing required value" for "Prepared_Fields"
+    # because it removes the only field in "Prepared_Fields" and leaves an empty dictionary.
+    # Rewrite test is schema is ever updated to allow multiple fields within Prepared_Fields.
+    val_prep_2_meth_miss_field[ChemicalSchema.PREP_FIELD_KEY].pop(ChemicalSchema.METH_REF_KEY)
+
+    val_prep_2_meth_miss_value = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_meth_miss_value[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = None
+
+    val_prep_2_meth_type = copy.deepcopy(valid_prepared_chemical_2)
+    val_prep_2_meth_type[ChemicalSchema.PREP_FIELD_KEY][ChemicalSchema.METH_REF_KEY] = 1
+
 
     invalid_chemicals = [
         # Invalid purchased chemical 1 permutations
@@ -746,7 +725,32 @@ def invalid_chemicals(
         (val_prep_1_prep_fields_type, ValidationErrorCodes.WRONG_TYPE_MSG),                     # Payload 90
         (val_prep_1_meth_miss_field, ValidationErrorCodes.MISS_REQ_VALUE_MSG),  # See note in this payloads creation
         (val_prep_1_meth_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
-        (val_prep_1_meth_type, ValidationErrorCodes.WRONG_TYPE_MSG)
+        (val_prep_1_meth_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+
+        # Invalid prepared chemical 2 permutations
+        (val_prep_2_name_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_name_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_name_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_cas_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_cas_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_cas_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_classif_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),               # Payload 100
+        (val_prep_2_classif_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_classif_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_classif_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_stor_cond_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_stor_cond_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_stor_cond_type, ValidationErrorCodes.WRONG_TYPE_MSG),
+        (val_prep_2_stor_cond_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_source_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_source_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_source_type, ValidationErrorCodes.WRONG_TYPE_MSG),                          # Payload 110
+        (val_prep_2_source_inval_list_entry, ValidationErrorCodes.INVAL_LIST_ENTRY_MSG),
+        (val_prep_2_prep_fields_miss_field, ValidationErrorCodes.MISS_REQ_FIELD_MSG),
+        (val_prep_2_prep_fields_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_meth_miss_field, ValidationErrorCodes.MISS_REQ_VALUE_MSG),  # See note in this payloads creation
+        (val_prep_2_meth_miss_value, ValidationErrorCodes.MISS_REQ_VALUE_MSG),
+        (val_prep_2_meth_type, ValidationErrorCodes.WRONG_TYPE_MSG)
     ]
 
     return invalid_chemicals
