@@ -1,6 +1,22 @@
 """
-For a detailed account of what is tested, please see docstrings for tests/chemicals/conftest.py and
+For a detailed account of lot and chemical testing, please see docstrings for tests/chemicals/conftest.py and
 tests/lots/conftest.py
+
+The aggregate fields "Available_Total" and "Available_Open" in the chemicals schema depend on the presence of lot records.
+As such, their testing neither quite fits neatly into the chemicals/ nor the lots/ test groups.
+
+# Chemical Total_Available and Total_Open field behaviour:
+* Chemical aggregate fields are initialized to int(0) upon chemical template creation.
+* Chemical aggregate fields will change as a result of lots being open, emptied, or their expiry date passing.
+* Chemical aggregate fields are recalculated when a PUT or GET request is submitted for a chemical(s).
+* Chemical aggregate fields are recalculated for a chemical template when lots are created or updated.
+* Chemical aggregate fields are NOT recalculated when lots are deleted. Though the system currently supports lot deletion,
+it is marked for an upgrade to remove the ability to delete lots (or anything, for that matter). A very high-level
+user may need access to truly delete records, but the system should isntead have "Removed" field flags for all objects,
+and "deleting" an object should merely set the "Removed" flaag to "True".
+    * This would be considered a critical issue if this system were live.
+* Chemical aggregate fields are technically updates when a chemical template receives a PUT request, but this is obfuscated by the
+fact that chemical aggregate fields are updated when a GET request is received for the template.
 """
 
 import sys

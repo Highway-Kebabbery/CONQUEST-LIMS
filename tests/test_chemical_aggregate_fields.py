@@ -1,43 +1,6 @@
-"""
-The aggregate fields "Available_Total" and "Available_Open" in the chemicals schema depend on the presence of lot records.
-As such, their testing neither quite fits neatly into the chemicals/ nor the lots/ test groups.
-
-# Chemical Total_Available and Total_Open field behaviour:
-* Chemical aggregate fields are initialized to int(0) upon chemical template creation.
-* Chemical aggregate fields will change as a result of lots being open, emptied, or their expiry date passing.
-* Chemical aggregate fields are recalculated when a PUT or GET request is submitted for a chemical(s).
-* Chemical aggregate fields are recalculated for a chemical template when lots are created or updated.
-* Chemical aggregate fields are NOT recalculated when lots are deleted. Though the system currently supports lot deletion,
-it is marked for an upgrade to remove the ability to delete lots (or anything, for that matter). A very high-level
-user may need access to truly delete records, but the system should isntead have "Removed" field flags for all objects,
-and "deleting" an object should merely set the "Removed" flaag to "True".
-    * This would be considered a critical issue if this system were live.
-        * (It's not live; it's a portfolio piece that I'm burned out on after 11 days of LITERAL dawn-to-dusk effort.)
-* Chemical aggregate fields are technically updates when a chemical template receives a PUT request, but this is obfuscated by the
-fact that chemical aggregate fields are updated when a GET request is received for the template.
-
-
-
-
-# Test design:
-* ***************************************Post all cehmical templates and store objects and primary keys.
-* *******************************************************************Check aggregate data on chemical templates. Total/Open should be 0/0 for purchased lots and 1/1 for prepared lots.
-* *********************************************************************Run post_all_lots() and store objects and primary keys.
-* ***********************************************************************Check aggregate data on chemical templates again. Total/Open should be 2/0 for purchased lots and 2/2 for prepared lots.
-* ************************************************Update purchased lots to give them an open date.
-* ***************************************Check aggregate data on chemical templates again. Total/Open should be 2/2 for purchased lots and 2/2 for prepared lots.
-* ****************************************Update all lots to have an empty date.
-* ***************************************************Check aggregate data on chemical templates again. Total/Open should be 0/0 for purchased lots and 0/0 for prepared lots.
-* ***************************************Update all lots to have no empty date.
-* ****************************************************Check aggregate data on chemical templates again. Total/Open should be 2/2 for purchased lots and 2/2 for prepared lots.
-* *************************************************************Update all lots to have a passed expiry date.
-* Check aggregate data on chemical templates again. Total/Open should be 0/0 for purchased lots and 0/0 for prepared lots.
-* If possible, set all lots to have expiry dates 15 seconds from now and update them.
-* Check aggregate data on chemical templates again. Total/Open should be 2/2 for purchased lots and 2/2 for prepared lots.
-* After waiting for 15 seconds, check aggregate data on chemical templates again. Total/Open should be 0/0 for purchased lots and 0/0 for prepared lots.
-"""
-import copy
-from tests.conftest import post_all_lots
+import copy, time
+from datetime import datetime, timezone, timedelta
+from tests.conftest import post_all_lots, flask_app
 from chemical_inventory_api_v1 import ChemicalSchema, LotSchema
 
 chemicals_address = "/chemicals"
@@ -90,13 +53,19 @@ def test_aggregate_chemical_fields(
         val_prep_lots
     )
     
-    purch_lot_1 = val_lots[0]
-    purch_lot_2 = val_lots[1]
-    prep_lot_1 = val_lots[2]
-    prep_lot_2 = val_lots[3]
+    purch_lot_1 = val_lots["val_purch_lot_1"]
+    purch_lot_2 = val_lots["val_purch_lot_2"]
+    prep_lot_1 = val_lots["val_prep_lot_1"]
+    prep_lot_2 = val_lots["val_prep_lot_2"]
 
     purch_lot_1[LotSchema.OPEN_KEY] = None
     purch_lot_2[LotSchema.OPEN_KEY] = None
+
+    unopen_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    unopen_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+
+    assert unopen_resp_1.status_code == 200
+    assert unopen_resp_2.status_code == 200
 
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
@@ -126,14 +95,20 @@ def test_aggregate_chemical_fields(
         val_prep_lots
     )
     
-    purch_lot_3 = val_lots[0]
-    purch_lot_4 = val_lots[1]
-    prep_lot_3 = val_lots[2]
-    prep_lot_4 = val_lots[3]
+    purch_lot_3 = val_lots["val_purch_lot_1"]
+    purch_lot_4 = val_lots["val_purch_lot_2"]
+    prep_lot_3 = val_lots["val_prep_lot_1"]
+    prep_lot_4 = val_lots["val_prep_lot_2"]
 
     purch_lot_3[LotSchema.OPEN_KEY] = None
     purch_lot_4[LotSchema.OPEN_KEY] = None
 
+    unopen_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    unopen_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+
+    assert unopen_resp_3.status_code == 200
+    assert unopen_resp_4.status_code == 200
+    
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
     purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
@@ -160,6 +135,16 @@ def test_aggregate_chemical_fields(
     purch_lot_3[LotSchema.OPEN_KEY] = "2024-12-21T14:30:00-04:00"
     purch_lot_4[LotSchema.OPEN_KEY] = "2024-12-21T14:30:00-04:00"
 
+    open_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    open_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+    open_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    open_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+
+    assert open_resp_1.status_code == 200
+    assert open_resp_2.status_code == 200
+    assert open_resp_3.status_code == 200
+    assert open_resp_4.status_code == 200
+    
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
     purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
@@ -181,6 +166,24 @@ def test_aggregate_chemical_fields(
     prep_lot_2[LotSchema.EMPTY_KEY] = "2024-12-22T14:30:00-04:00"
     prep_lot_3[LotSchema.EMPTY_KEY] = "2024-12-22T14:30:00-04:00"
     prep_lot_4[LotSchema.EMPTY_KEY] = "2024-12-22T14:30:00-04:00"
+
+    empty_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    empty_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+    empty_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    empty_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+    empty_resp_5 = client.put(f"{lots_address}/{prep_lot_1[LotSchema.LOT_ID_KEY]}", json=prep_lot_1)
+    empty_resp_6 = client.put(f"{lots_address}/{prep_lot_2[LotSchema.LOT_ID_KEY]}", json=prep_lot_2)
+    empty_resp_7 = client.put(f"{lots_address}/{prep_lot_3[LotSchema.LOT_ID_KEY]}", json=prep_lot_3)
+    empty_resp_8 = client.put(f"{lots_address}/{prep_lot_4[LotSchema.LOT_ID_KEY]}", json=prep_lot_4)
+
+    assert empty_resp_1.status_code == 200
+    assert empty_resp_2.status_code == 200
+    assert empty_resp_3.status_code == 200
+    assert empty_resp_4.status_code == 200
+    assert empty_resp_5.status_code == 200
+    assert empty_resp_6.status_code == 200
+    assert empty_resp_7.status_code == 200
+    assert empty_resp_8.status_code == 200
 
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
@@ -212,6 +215,24 @@ def test_aggregate_chemical_fields(
     prep_lot_3[LotSchema.EMPTY_KEY] = None
     prep_lot_4[LotSchema.EMPTY_KEY] = None
 
+    unempty_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    unempty_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+    unempty_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    unempty_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+    unempty_resp_5 = client.put(f"{lots_address}/{prep_lot_1[LotSchema.LOT_ID_KEY]}", json=prep_lot_1)
+    unempty_resp_6 = client.put(f"{lots_address}/{prep_lot_2[LotSchema.LOT_ID_KEY]}", json=prep_lot_2)
+    unempty_resp_7 = client.put(f"{lots_address}/{prep_lot_3[LotSchema.LOT_ID_KEY]}", json=prep_lot_3)
+    unempty_resp_8 = client.put(f"{lots_address}/{prep_lot_4[LotSchema.LOT_ID_KEY]}", json=prep_lot_4)
+
+    assert unempty_resp_1.status_code == 200
+    assert unempty_resp_2.status_code == 200
+    assert unempty_resp_3.status_code == 200
+    assert unempty_resp_4.status_code == 200
+    assert unempty_resp_5.status_code == 200
+    assert unempty_resp_6.status_code == 200
+    assert unempty_resp_7.status_code == 200
+    assert unempty_resp_8.status_code == 200
+
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
     purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
@@ -242,6 +263,24 @@ def test_aggregate_chemical_fields(
     prep_lot_3[LotSchema.EXPIRY_KEY] = "2024-12-22T14:30:00-04:00"
     prep_lot_4[LotSchema.EXPIRY_KEY] = "2024-12-22T14:30:00-04:00"
 
+    expire_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    expire_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+    expire_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    expire_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+    expire_resp_5 = client.put(f"{lots_address}/{prep_lot_1[LotSchema.LOT_ID_KEY]}", json=prep_lot_1)
+    expire_resp_6 = client.put(f"{lots_address}/{prep_lot_2[LotSchema.LOT_ID_KEY]}", json=prep_lot_2)
+    expire_resp_7 = client.put(f"{lots_address}/{prep_lot_3[LotSchema.LOT_ID_KEY]}", json=prep_lot_3)
+    expire_resp_8 = client.put(f"{lots_address}/{prep_lot_4[LotSchema.LOT_ID_KEY]}", json=prep_lot_4)
+
+    assert expire_resp_1.status_code == 200
+    assert expire_resp_2.status_code == 200
+    assert expire_resp_3.status_code == 200
+    assert expire_resp_4.status_code == 200
+    assert expire_resp_5.status_code == 200
+    assert expire_resp_6.status_code == 200
+    assert expire_resp_7.status_code == 200
+    assert expire_resp_8.status_code == 200
+
     # Verify that aggregate fields were updated
     purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
     purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
@@ -261,3 +300,86 @@ def test_aggregate_chemical_fields(
     assert prep_data_1[ChemicalSchema.AVAIL_OPEN_KEY] == 0
     assert prep_data_2[ChemicalSchema.AVAIL_TOTAL_KEY] == 0
     assert prep_data_2[ChemicalSchema.AVAIL_OPEN_KEY] == 0
+
+
+# The test can be killed from here down for use as a start-up check to avoid the wait time.
+# This is technically redundant given the manual expiration of ltos above, but I wanted to see
+# it happen in real-time organically during testing.
+#***********************************************************************************************# 
+#"""
+
+    # Un-expire all lots
+    now_local = datetime.now(timezone.utc).astimezone()
+    now_local_plus_10_sec = now_local + timedelta(seconds=10)
+    now_local_plus_10_sec_iso = now_local_plus_10_sec.isoformat()
+    purch_lot_1[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    purch_lot_2[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    purch_lot_3[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    purch_lot_4[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    prep_lot_1[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    prep_lot_2[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    prep_lot_3[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+    prep_lot_4[LotSchema.EXPIRY_KEY] = str(now_local_plus_10_sec_iso)
+
+    unexpire_resp_1 = client.put(f"{lots_address}/{purch_lot_1[LotSchema.LOT_ID_KEY]}", json=purch_lot_1)
+    unexpire_resp_2 = client.put(f"{lots_address}/{purch_lot_2[LotSchema.LOT_ID_KEY]}", json=purch_lot_2)
+    unexpire_resp_3 = client.put(f"{lots_address}/{purch_lot_3[LotSchema.LOT_ID_KEY]}", json=purch_lot_3)
+    unexpire_resp_4 = client.put(f"{lots_address}/{purch_lot_4[LotSchema.LOT_ID_KEY]}", json=purch_lot_4)
+    unexpire_resp_5 = client.put(f"{lots_address}/{prep_lot_1[LotSchema.LOT_ID_KEY]}", json=prep_lot_1)
+    unexpire_resp_6 = client.put(f"{lots_address}/{prep_lot_2[LotSchema.LOT_ID_KEY]}", json=prep_lot_2)
+    unexpire_resp_7 = client.put(f"{lots_address}/{prep_lot_3[LotSchema.LOT_ID_KEY]}", json=prep_lot_3)
+    unexpire_resp_8 = client.put(f"{lots_address}/{prep_lot_4[LotSchema.LOT_ID_KEY]}", json=prep_lot_4)
+    
+    assert unexpire_resp_1.status_code == 200
+    assert unexpire_resp_2.status_code == 200
+    assert unexpire_resp_3.status_code == 200
+    assert unexpire_resp_4.status_code == 200
+    assert unexpire_resp_5.status_code == 200
+    assert unexpire_resp_6.status_code == 200
+    assert unexpire_resp_7.status_code == 200
+    assert unexpire_resp_8.status_code == 200
+
+    # Verify that aggregate fields were updated
+    purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
+    purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
+    prep_chem_1_resp = client.get(f"{chemicals_address}/{prep_chem_1_id}")
+    prep_chem_2_resp = client.get(f"{chemicals_address}/{prep_chem_2_id}")
+
+    purch_data_1 = purch_chem_1_resp.get_json()
+    purch_data_2 = purch_chem_2_resp.get_json()
+    prep_data_1 = prep_chem_1_resp.get_json()
+    prep_data_2 = prep_chem_2_resp.get_json()
+
+    assert purch_data_1[ChemicalSchema.AVAIL_TOTAL_KEY] == 2
+    assert purch_data_1[ChemicalSchema.AVAIL_OPEN_KEY] == 2
+    assert purch_data_2[ChemicalSchema.AVAIL_TOTAL_KEY] == 2
+    assert purch_data_2[ChemicalSchema.AVAIL_OPEN_KEY] == 2
+    assert prep_data_1[ChemicalSchema.AVAIL_TOTAL_KEY] == 2
+    assert prep_data_1[ChemicalSchema.AVAIL_OPEN_KEY] == 2
+    assert prep_data_2[ChemicalSchema.AVAIL_TOTAL_KEY] == 2
+    assert prep_data_2[ChemicalSchema.AVAIL_OPEN_KEY] == 2
+
+    # Wait a few seconds to verify that expiry datetimes have passed
+    time.sleep(11)
+
+    # Verify that aggregate fields were updated
+    purch_chem_1_resp = client.get(f"{chemicals_address}/{purch_chem_1_id}")
+    purch_chem_2_resp = client.get(f"{chemicals_address}/{purch_chem_2_id}")
+    prep_chem_1_resp = client.get(f"{chemicals_address}/{prep_chem_1_id}")
+    prep_chem_2_resp = client.get(f"{chemicals_address}/{prep_chem_2_id}")
+
+    purch_data_1 = purch_chem_1_resp.get_json()
+    purch_data_2 = purch_chem_2_resp.get_json()
+    prep_data_1 = prep_chem_1_resp.get_json()
+    prep_data_2 = prep_chem_2_resp.get_json()
+
+    assert purch_data_1[ChemicalSchema.AVAIL_TOTAL_KEY] == 0
+    assert purch_data_1[ChemicalSchema.AVAIL_OPEN_KEY] == 0
+    assert purch_data_2[ChemicalSchema.AVAIL_TOTAL_KEY] == 0
+    assert purch_data_2[ChemicalSchema.AVAIL_OPEN_KEY] == 0
+    assert prep_data_1[ChemicalSchema.AVAIL_TOTAL_KEY] == 0
+    assert prep_data_1[ChemicalSchema.AVAIL_OPEN_KEY] == 0
+    assert prep_data_2[ChemicalSchema.AVAIL_TOTAL_KEY] == 0
+    assert prep_data_2[ChemicalSchema.AVAIL_OPEN_KEY] == 0
+
+#"""
