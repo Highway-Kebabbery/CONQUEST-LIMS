@@ -1,5 +1,9 @@
-import pytest, copy
-from chemical_inventory_api_v1 import LotSchema, ValidationErrorCodes, ChemicalSchema
+import copy
+
+from app.utils.validation_error_codes import ValidationErrorCodes
+from app.models.chemicals import ChemicalSchema
+from app.models.lots import LotSchema
+
 from tests.lots.conftest import post_all_lots
 
 # Variable names for Water, In-House are verbose to avoid potential future conflict

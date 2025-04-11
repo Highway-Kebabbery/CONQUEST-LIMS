@@ -85,7 +85,9 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import pytest, copy
-from chemical_inventory_api_v1 import ChemicalSchema, ValidationErrorCodes
+
+from app.utils.validation_error_codes import ValidationErrorCodes
+from app.models.chemicals import ChemicalSchema
 
 @pytest.fixture()
 def purch_chem_1_extra_field(valid_purchased_chemical_1):

@@ -1,7 +1,9 @@
 import copy, time
 from datetime import datetime, timezone, timedelta
-from tests.conftest import post_all_lots, flask_app
-from chemical_inventory_api_v1 import ChemicalSchema, LotSchema
+from tests.conftest import post_all_lots
+
+from app.models.chemicals import ChemicalSchema
+from app.models.lots import LotSchema
 
 chemicals_address = "/chemicals"
 lots_address = "/lots"

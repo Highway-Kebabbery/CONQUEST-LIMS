@@ -86,3 +86,17 @@ Note that a lot of the indentation ended up weird... I probably need to configur
 
 I'm going to need to make an update to check environment variable to set client depending on whether it' stest or prod
 
+Future updates: 
+            * Maintain current request structure, but flatten requests for validation. It
+            would be easier to separate the concern of validation by field or by validation 
+            check. I would likely create a list of fields for each validation check and loop 
+            through the validation list checking flattened_request[validated_field_list_element] 
+            values in the order that validation checks must be run (missing field, missing 
+            value, wrong type, and invalid list entry, followed by checks like datetime 
+            format, primary key validity, and existence in the database). This would make 
+            it easier both to skip optional values in the miss_req_value check and to 
+            include the "N/A" string as a valid entry for fields not typed as strings. 
+            Records would be reconstructed according to the scema definition prior to 
+            record insertion.
+
+

@@ -1,5 +1,7 @@
-from chemical_inventory_api_v1 import ListsSchema, ValidationErrorCodes
 import pytest, copy
+
+from app.utils.validation_error_codes import ValidationErrorCodes
+from app.models.lists import ListsSchema
 
 # Validated lists
 classifications = {f"{ListsSchema.LIST_NAME_KEY}": ListsSchema.CLASSIF_LIST_KEY(), f"{ListsSchema.LIST_ENT_KEY}": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
