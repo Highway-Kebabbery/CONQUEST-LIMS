@@ -84,4 +84,5 @@ Note that a lot of the indentation ended up weird... I probably need to configur
     In any case, Writing the entire project was exhausting and I'll come back to clean up
     formatting later.
 
-Shhhhould I add tests to GET functions that records match the response schema? Simple tests?
+I'm going to need to make an update to check environment variable to set client depending on whether it' stest or prod
+

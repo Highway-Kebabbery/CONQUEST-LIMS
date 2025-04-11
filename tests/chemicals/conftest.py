@@ -76,14 +76,6 @@ return the error message for the first error.
 configuration of a valid chemical.
 * PUT: All invalid chemical configurations are tested for failure to update against
 all valid chemical configurations.
-*
-*
-*
-*
-* DON'T FORGET TO ADD TESTING THAT CHEMICAL AGGREGATE FIELDS WORK AFTER GETTING THE LOTS END POINTS WORKING
-* Test after lots is functional that aggregate values don't include expired lots
-* ... I'll probably need the same conftest.py for chemicals and lots
-
 """
 
 import sys
