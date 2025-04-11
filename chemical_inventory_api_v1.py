@@ -4,6 +4,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime, timezone
 import copy, re
+from typing import List
 
 """
 # Notes to a hiring manager if somehow I apply to a job before I finish:
@@ -477,6 +478,10 @@ the initial checks because it's an edge case).
 to completely replace one record (say, a methanol chemical) with another (replacing said methanol record with information for an acetone product).
 This and the addition of a "Removed" flag to replace true deletion would prevent the complete disappearance of records because the names would always be available.
 Although a record could be replaced in every field but the "Name," it would be unusable as a replacement because of the locked name field.
+* Prevent "Open Dates" from being future dates/times.
+* Prevent empty dates from being earlier than open or prepared dates
+* Prevent unopened lots from being used as compnents
+* Prevent expired lots from being opened
 """
 
 app = Flask(__name__)
@@ -928,41 +933,62 @@ class ChemicalSchema():
             self.__mongo_id = self._chem_request_data.pop("_id")
     
     @staticmethod
-    def query_current_totals(lots_collection, chemical_id):
+    def query_current_totals(
+        chemicals_collection,
+        lots_collection,
+        chem_ids: List[str],
+        update_records=False
+    ):
         # This function sets and returns the current avail total and 
         # current avail open for a given chemical_id. It's intended to be called either
-        # internally or externally.
+        # internally or externally. For PUT requests it's designed to take a list of
+        # one chemical primary key and return the aggregate totals. For GET requests
+        # it will update the records in the list, though it still returns the totals
+        # from the last id edited. The GET request must re-search the database to 
+        # pull updated totals
         # 
+        # cham_ids is a list of one or more chemical primary keys
+        # request_method is a string that should correspond to an HTTP request
         # lots_collection is type pymongo.collection.Collection
-        # 
-        # related_lot is ojbect of type LotSchema (to pass key names)
-        
-        now = datetime.now(timezone.utc)
+        # Update_records instructs the method to update the aggregate fields in the database.
+        #    (This is used when in all cases other than POSTing a chemical)
+        for id in chem_ids:
+            if isinstance(id, str):
+                ObjectId(id)
+            now = datetime.now(timezone.utc)
+            
+            current_avail_total = lots_collection.count_documents({
+                "$and": [
+                    {LotSchema.PARENT_CHEM_ID_KEY: id},
+                    {LotSchema.EMPTY_KEY: {"$eq": None}},
+                    {LotSchema.EXPIRY_KEY: {"$gt": now}}
+                ]
+            })
 
-        current_avail_total = lots_collection.count_documents({
-            "$and": [
-                {LotSchema.PARENT_CHEM_ID_KEY: ObjectId(chemical_id)},
-                {LotSchema.EMPTY_KEY: {"$eq": None}},
-                {LotSchema.EXPIRY_KEY: {"$gt": now}}
-            ]
-        })
-
-        current_avail_open = lots_collection.count_documents({
-            "$and": [
-                {LotSchema.PARENT_CHEM_ID_KEY: ObjectId(chemical_id)},
-                {LotSchema.EMPTY_KEY: {"$eq": None}},
-                {LotSchema.EXPIRY_KEY: {"$gt": now}},
-                {"$or": [
-                    {
-                        ChemicalSchema.SOURCE_KEY: "Purchased",
-                        LotSchema.OPEN_KEY: {"$ne": None}
-                    },
-                    {
-                        ChemicalSchema.SOURCE_KEY: "Prepared"
+            current_avail_open = lots_collection.count_documents({
+                "$and": [
+                    {LotSchema.PARENT_CHEM_ID_KEY: id},
+                    {LotSchema.EMPTY_KEY: {"$eq": None}},
+                    {LotSchema.EXPIRY_KEY: {"$gt": now}},
+                    {"$or": [
+                        {"$and": [
+                            {ChemicalSchema.SOURCE_KEY: "Purchased",
+                             LotSchema.OPEN_KEY: {"$ne": None}}
+                        ]},
+                        {ChemicalSchema.SOURCE_KEY: "Prepared"}]
                     }
-                ]}
-            ]
-        })
+                ]
+            })
+
+            if update_records == True:
+                # Update record in database with new totals
+                chemicals_collection.update_one(
+                    {ChemicalSchema.CHEM_ID_KEY: id},
+                    {"$set": {
+                        ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
+                        ChemicalSchema.AVAIL_OPEN_KEY: current_avail_open
+                    }}
+                )
 
         return {
             ChemicalSchema.AVAIL_TOTAL_KEY: current_avail_total,
@@ -1226,8 +1252,10 @@ class ChemicalSchema():
                     
         return error_info
 
-    def build_chem_record(self, chemical_id=ObjectId(), req_method=""):
+    def build_chem_record(self, req_method, chemical_id=ObjectId()):
         # Build dictionary object to add new record using mandatory schema.
+        # req_method = "N/A" if calling from within LotSchema because aggregate fields
+        # do not apply in that situation.
         record = {}
 
         for key in self.CHEMICAL_SCHEMA:
@@ -1255,12 +1283,34 @@ class ChemicalSchema():
             record[self.AVAIL_TOTAL_KEY] = 0
             record[self.AVAIL_OPEN_KEY] = 0
         elif req_method.upper() == "PUT":
-            totals = ChemicalSchema.query_current_totals(self._lots_collection, chemical_id)
-
+            totals = ChemicalSchema.query_current_totals(
+                self._chemicals_collection,
+                self._lots_collection,
+                [chemical_id],
+                req_method
+            )
+            
             record[self.AVAIL_TOTAL_KEY] = totals[self.AVAIL_TOTAL_KEY]
             record[self.AVAIL_OPEN_KEY] = totals[self.AVAIL_OPEN_KEY]
 
         return record
+
+    def insert_chem_record(
+        self,
+        chemicals_collection,
+        record,
+        req_method,
+        chemical_id: str = ""
+    ):
+        if req_method.upper() == "POST":
+            result = chemicals_collection.insert_one(record)
+        elif req_method.upper() == "PUT":
+            result = chemicals_collection.update_one(
+                {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)},
+                {"$set": record}
+            )
+        
+        return result
 
 class LotSchema(ChemicalSchema):
     LOT_ID_KEY = "_id" 
@@ -1778,7 +1828,7 @@ class LotSchema(ChemicalSchema):
         record = {}
         # Fetch shared fields from chemical schema
         request = self._lot_request_data
-        chem_fields = self.build_chem_record(self._chem_data)
+        chem_fields = self.build_chem_record("N/A", self._chem_data)
 
         # Build fields with same order in purchased or prepared records
         record[self.PARENT_CHEM_ID_KEY] = ObjectId(request[self.PARENT_CHEM_ID_KEY])
@@ -1879,9 +1929,35 @@ class LotSchema(ChemicalSchema):
                     
                 record[self.COMPONENTS_KEY].append(component_attrs)
 
-
         return record
+    
+    def insert_lot_record(
+        self,
+        chemicals_collection,
+        lots_collection,
+        record,
+        req_method,
+        lot_id: str = ""
 
+    ):
+        # Update lot record and then update parent chemical aggregate fields
+        if req_method.upper() == "POST":
+            result = app.lots.insert_one(record)
+        
+        elif req_method.upper() == "PUT":
+            result = app.lots.update_one(
+                    {LotSchema.LOT_ID_KEY: ObjectId(lot_id)},
+                    {"$set": record}
+                )
+
+        ChemicalSchema.query_current_totals(
+            chemicals_collection,
+            lots_collection,
+            [record[LotSchema.PARENT_CHEM_ID_KEY]],
+            True
+        )
+    
+        return result
 
 
 
@@ -1894,8 +1970,24 @@ class LotSchema(ChemicalSchema):
 # Fetch all chemical documents
 @app.route("/chemicals", methods=["GET"])
 def get_all_chemicals():
+    # Update aggregate fields to refresh data
+    all_chem_ids = [
+        chem[ChemicalSchema.CHEM_ID_KEY] for chem in app.chemicals.find(
+            {},
+            {ChemicalSchema.CHEM_ID_KEY: 1}
+        )
+    ]
+
+    ChemicalSchema.query_current_totals(
+        app.chemicals,
+        app.lots,
+        all_chem_ids,
+        True
+    )
+
+    # Find and return refreshed records
     all_chemicals = list(app.chemicals.find())
-    
+
     for chemical in all_chemicals:
         # Type ObjectId not JSON serializable
         chemical[ChemicalSchema.CHEM_ID_KEY] = str(
@@ -1920,12 +2012,17 @@ def add_chemical():
             app.chemicals,
             app.lots
         )
+
         form_val = new_chemical.validate_chemical_form(request.method)
 
         if form_val[1] == 0:
-            record = new_chemical.build_chem_record()
-            result = app.chemicals.insert_one(record)
-            
+            record = new_chemical.build_chem_record(request.method)
+            result = new_chemical.insert_chem_record(
+                app.chemicals,
+                record,
+                request.method
+            )
+
             response = jsonify({"inserted_id": str(result.inserted_id)}), 201
         else:
             msg = ValidationErrorCodes.gen_val_err_msg(form_val)
@@ -1937,16 +2034,31 @@ def add_chemical():
 @app.route("/chemicals/<chemical_id>", methods=["GET"])
 def get_chemical(chemical_id):
     try:
-        result = app.chemicals.find_one(
+        chem_doc = app.chemicals.find_one(
             {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
         )
-        if not result:
+
+        if not chem_doc:
             response = jsonify({"error": "Not found"}), 404
         else:
-            result[ChemicalSchema.CHEM_ID_KEY] = str(
-                result[ChemicalSchema.CHEM_ID_KEY]
+            # Update aggregate fields to reflect current state of lot database
+            ChemicalSchema.query_current_totals(
+                app.chemicals,
+                app.lots,
+                [chem_doc[ChemicalSchema.CHEM_ID_KEY]],
+                True
             )
-            response = jsonify(result), 200
+
+            # Find and return refreshed record
+            chem_doc = app.chemicals.find_one(
+                {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
+            )
+            
+            chem_doc[ChemicalSchema.CHEM_ID_KEY] = str(
+                chem_doc[ChemicalSchema.CHEM_ID_KEY]
+            )
+            
+            response = jsonify(chem_doc), 200
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400
 
@@ -1977,13 +2089,15 @@ def update_chemical(chemical_id):
         if form_val[1] == 0:
             try:
                 record = updated_chemical.build_chem_record(
-                    chemical_id,
-                    request.method
+                    request.method,
+                    chemical_id
                 )
 
-                result = app.chemicals.update_one(
-                    {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)},
-                    {"$set": record}
+                result = updated_chemical.insert_chem_record(
+                    app.chemicals,
+                    record,
+                    request.method,
+                    chemical_id
                 )
                 
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
@@ -2059,9 +2173,13 @@ def add_lot():
         form_val = new_lot.validate_lot_form(request.method)
         
         if form_val[1] == 0:
-            
             record = new_lot.build_lot_record()
-            result = app.lots.insert_one(record)
+            result = new_lot.insert_lot_record(
+                app.chemicals,
+                app.lots,
+                record,
+                request.method
+            )
 
             response = jsonify({"inserted_id": str(result.inserted_id)}), 201
 
@@ -2130,10 +2248,12 @@ def update_lot(lot_id):
         if form_val[1] == 0:
             try:
                 record = updated_lot.build_lot_record()
-
-                result = app.lots.update_one(
-                    {LotSchema.LOT_ID_KEY: ObjectId(lot_id)},
-                    {"$set": record}
+                result = updated_lot.insert_lot_record(
+                    app.chemicals,
+                    app.lots,
+                    record,
+                    request.method,
+                    lot_id
                 )
 
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
