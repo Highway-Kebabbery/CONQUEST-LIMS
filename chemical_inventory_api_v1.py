@@ -432,11 +432,6 @@ be for something I actually use and/or sell.
 
 
 # Where to pick up:
-* Write tests
-    * Write script to load lists into lists collection.
-    * Write script to load database within a test
-    * I'll need to create chemicals then query them to get their _ids and do the same with lots. Flesh out tests later.
-    * Test all chemical and lot methods/end points for now and call it tested
 * Depending on whether I could quikcly get script to load database, write code to load it with lists collection
     * No, you're not writing end points to edit the lists collection. That can be a future upgrade.
     * You're not writing validation for the lists collection given there are no end points to interface with the lists collection.
@@ -486,7 +481,6 @@ Although a record could be replaced in every field but the "Name," it would be u
 
 app = Flask(__name__)
 
-# Allow dependency injection from tests, otherwise create chemicals collection
 if not hasattr(app, "mongo_client"):
     # app.mongo_client = MongoClient("mongodb-service", 27017)    # Use this client for production
     app.mongo_client = MongoClient("localhost", 27017)  # Use this client for testing directly in WSL with MongoDB
