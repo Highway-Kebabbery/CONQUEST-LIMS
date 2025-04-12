@@ -1,3 +1,8 @@
+"""
+See tests/lots/conftest.py for a detailed overview of the lots 
+testing strategy. See docs/specification.md for a comprehensive view of system 
+integration testing.
+"""
 from app.models.lists import ListsSchema
 
 lists_address = "/lists"

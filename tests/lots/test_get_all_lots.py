@@ -1,3 +1,8 @@
+"""
+See tests/lots/conftest.py for a detailed overview of the lots 
+testing strategy. See docs/specification.md for a comprehensive view of system 
+integration testing.
+"""
 from tests.lots.conftest import post_all_lots
 
 # Variable names for Water, In-House are verbose to avoid potential future conflict
