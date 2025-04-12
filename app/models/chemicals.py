@@ -279,32 +279,32 @@ class ChemicalSchema():
             elif self._check.wrong_type(
                 self._chem_request_data[self.SOURCE_KEY],
                 self.CHEMICAL_SCHEMA[self.SOURCE_KEY]
-                ):
+            ):
                 error_info = (self.SOURCE_KEY, self._errs.WRONG_TYPE)
             elif self._check.inval_list_entry(
                 self._chem_request_data[self.SOURCE_KEY],
                 self._field_lists.sources
-                ):
+            ):
                 error_info = (self.SOURCE_KEY, self._errs.INVAL_LIST_ENTRY)
 
         # Check for extra fields in request
         if error_info[0] == None: 
             request_keys = HelperFunctions.get_schema_keys(
                 self._chem_request_data
-                )
+            )
             schema_keys = HelperFunctions.get_schema_keys(
                 self.CHEMICAL_SCHEMA
-                )
+            )
             
             if self._chem_request_data[self.SOURCE_KEY] == "Purchased":
                 irrelevant_keys = HelperFunctions.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PREP_FIELD_KEY]
-                    )
+                )
                 irrelevant_keys[0].append(self.PREP_FIELD_KEY)
             elif self._chem_request_data[self.SOURCE_KEY] == "Prepared":
                 irrelevant_keys = HelperFunctions.get_schema_keys(
                     self.CHEMICAL_SCHEMA[self.PURCH_FIELD_KEY]
-                    )
+                )
                 irrelevant_keys[0].append(self.PURCH_FIELD_KEY)
             
             # Remove irrelevant keys (and discard unused return value)
@@ -333,14 +333,14 @@ class ChemicalSchema():
                         if self._check.inval_list_entry(
                             self._chem_request_data[key],
                             self._field_lists.classifications
-                            ):
+                        ):
                             error_info = (key, self._errs.INVAL_LIST_ENTRY)
                             break
                     elif key == self.STORAGE_KEY:
                         if self._check.inval_list_entry(
                             self._chem_request_data[key],
                             self._field_lists.storage_conditions
-                            ):
+                        ):
                             error_info = (key, self._errs.INVAL_LIST_ENTRY)
                             break
 
@@ -356,7 +356,7 @@ class ChemicalSchema():
                     elif self._check.wrong_type(
                         self._chem_request_data[key],
                         self.CHEMICAL_SCHEMA[key]
-                        ):
+                    ):
                         error_info = (key, self._errs.WRONG_TYPE)
                         break
 
@@ -382,21 +382,21 @@ class ChemicalSchema():
                             if self._check.inval_list_entry(
                                 req_inner_dict[inner_key],
                                 self._field_lists.manufacturers
-                                ):
+                            ):
                                 error_info = (inner_key, self._errs.INVAL_LIST_ENTRY)
                                 break
                         elif inner_key == self.UNIT_KEY:
                             if self._check.inval_list_entry(
                                 req_inner_dict[inner_key],
                                 self._field_lists.units
-                                ):
+                            ):
                                 error_info = (inner_key, self._errs.INVAL_LIST_ENTRY)
                                 break
                         elif inner_key == self.CONT_TYPE_KEY:
                             if self._check.inval_list_entry(
                                 req_inner_dict[inner_key],
                                 self._field_lists.containers
-                                ):
+                            ):
                                 error_info = (inner_key, self._errs.INVAL_LIST_ENTRY)
                                 break
                 
@@ -412,7 +412,7 @@ class ChemicalSchema():
                     elif self._check.wrong_type(
                         self._chem_request_data[key],
                         self.CHEMICAL_SCHEMA[key]
-                        ):
+                    ):
                         error_info = (key, self._errs.WRONG_TYPE)
                         break
 
@@ -451,8 +451,8 @@ class ChemicalSchema():
                             {f"{self.PURCH_FIELD_KEY}.{self.AMT_KEY}": req_purch_fields[self.AMT_KEY]},
                             {f"{self.PURCH_FIELD_KEY}.{self.UNIT_KEY}": req_purch_fields[self.UNIT_KEY]},
                             {f"{self.PURCH_FIELD_KEY}.{self.CONT_TYPE_KEY}": req_purch_fields[self.CONT_TYPE_KEY]}
-                            ]
-                        }
+                        ]
+                    }
                     
                 else:
                     req_prep_fields = self._chem_request_data[self.PREP_FIELD_KEY]
@@ -460,11 +460,11 @@ class ChemicalSchema():
                     chemical_exist_query = {
                         # Same prepared material of any name
                         f"{self.PREP_FIELD_KEY}.{self.METH_REF_KEY}": req_prep_fields[self.METH_REF_KEY]
-                        }
+                    }
 
                 chem_data = self.find_chemical_form(
                     chemical_exist_query, self._chemicals_collection
-                    )
+                )
 
                 if chem_data:
                     error_info = (
@@ -481,7 +481,7 @@ class ChemicalSchema():
 
                     chem_data = self.find_chemical_form(
                         chemical_exist_query, self._chemicals_collection
-                        )
+                    )
                     
                     if chem_data == None:
                         # Don't overwrite error code if primary key was not valid ObjectId
@@ -514,7 +514,7 @@ class ChemicalSchema():
                 if key == self.PURCH_FIELD_KEY:
                     record[key] = {
                         inner_key: self._chem_request_data[key][inner_key] for inner_key in self.CHEMICAL_SCHEMA[key]
-                        }
+                    }
                 elif key == self.PREP_FIELD_KEY:
                     continue
                 else:
@@ -525,7 +525,7 @@ class ChemicalSchema():
                 elif key == self.PREP_FIELD_KEY:
                     record[key] = {
                         inner_key: self._chem_request_data[key][inner_key] for inner_key in self.CHEMICAL_SCHEMA[key]
-                        }
+                    }
                 else:
                     record[key] = self._chem_request_data[key]
 

@@ -1,7 +1,7 @@
 """
 Schema validation and record management for lot records.
 
-This module defines the LotSchema class, which validates input for
+This module defines the LotSchema class which validates input for
 lot records submitted to the system, builds records to be inserted, 
 and handles the insertion of those records. The schema supports
 both purchased and prepared lots and handles validation of nested
@@ -36,8 +36,8 @@ from bson.errors import InvalidId
 
 class LotSchema(ChemicalSchema):
     LOT_ID_KEY = "_id" 
-    PARENT_CHEM_ID_KEY = "chemical_id"   # Linked to chemicals._id
-    COMP_LOT_KEY = "lot_id"    # Links to lots._id. Specifies the lot used in this component.
+    PARENT_CHEM_ID_KEY = "chemical_id"              # Linked to chemicals._id
+    COMP_LOT_KEY = "lot_id"                         # Links to lots._id. Specifies the lot used in this component.
     MANU_LOT_KEY = "Manufacturer_Lot_Batch_Number"
     OPEN_KEY = "Open_Date"
     EXPIRY_KEY = "Expiry_Date"
@@ -50,22 +50,14 @@ class LotSchema(ChemicalSchema):
     # split out to aid potential future updates where they diverge.
     PURCH_COMP_SCHEMA = {
         COMP_LOT_KEY: str,
-        # ChemicalSchema.NAME_KEY added at time of lot record construction
-        # ChemicalSchema.MANU_KEY added at time of lot record construction
-        # ChemicalSchema.MANU_PN_KEY added at time of lot record construction
-        # ChemicalSchema.MANU_LOT_KEY added at time of lot record construction
-        ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY],    # Calculations with amounts must be performed with Decimal()
+        ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY],        # Calculations with amounts must be performed with Decimal()
         ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY]
-        # EXPIRY_KEY added at time of lot record construction
         }
     
     PREP_COMP_SCHEMA = {
         COMP_LOT_KEY: str,
-        # ChemicalSchema.NAME_KEY added at time of lot record construction
-        # ChemicalSchema.METH_REF_KEY added at time of lot record creation
         ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY],
         ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY]
-        # EXPIRY_KEY added at time of lot record construction
     }
     
     LOT_SCHEMA = {
