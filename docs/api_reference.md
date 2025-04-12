@@ -2,19 +2,19 @@
 
 This document outlines the REST API endpoints available in the CONQUEST-LIMS system for managing chemical templates, lots, and validated entry lists.
 
-## /chemicals – Chemical Template Endpoints
+## `/chemicals` – Chemical Template Endpoints
 
-### GET /chemicals
+### GET `/chemicals`
 Description: Fetch all chemical templates.\
 Returns:
-* List of chemical documents with current aggregate fields (Available_Total, Available_Open).
-* See GET /chemicals/<chemical_id> for single document structure.
+* List of chemical documents with refreshed aggregate fields (Available_Total, Available_Open).
+* See [GET](#get-chemicals) `/chemicals/<chemical_id>` for single document structure.
 
-### POST /chemicals
+### POST `/chemicals`
 Description: Create a new chemical template.\
 Returns:
-* 201 Created with inserted _id, or
-* 422 with validation error
+* 201 Created with inserted _id.
+* 422 with custom validation error code.
 
 Request body structures:
 
@@ -50,8 +50,8 @@ request = {
 }
 ```
 
-### GET /chemicals/<chemical_id>
-Description: Fetch a single chemical template by _id.\
+### GET `/chemicals/<chemical_id>`
+Description: Fetch a single chemical template by _id.
 
 Returns:
 * JSON document with updated aggregate fields.
@@ -95,17 +95,18 @@ response = {
 }
 ```
 
-### PUT /chemicals/<chemical_id>
+### PUT `/chemicals/<chemical_id>`
 Description: Update an existing chemical template.\
 Returns:
-* 200 OK with modified count or appropriate error code.
+* 200 OK with modified count
+* 422 with custom validation error code.
 
 Request body formats:
 
 * Purchased chemicals:
 ```json
 request = {
-    "_id": str,                # Required. Convertable to a ObjectId(). Primary key.
+    "_id": str,                # Required. Convertible to a ObjectId(). Primary key.
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
     "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
@@ -124,7 +125,7 @@ request = {
 * Prepared chemicals:
 ```json
 request = {
-    "_id": str,                # Required. Convertable to a ObjectId(). Primary key.
+    "_id": str,                # Required. Convertible to a ObjectId(). Primary key.
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
     "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
@@ -136,13 +137,14 @@ request = {
 }
 ```
 
-### DELETE /chemicals/<chemical_id>
+### DELETE `/chemicals/<chemical_id>`
 Description: Delete a chemical template by _id.\
 Returns:
-* 204 No Content or 404 Not Found
+* 204 No Content if successful.
+* 404 Not Found if record can't be located.
 
-## /lots – Lot Management Endpoints
-### GET /lots
+## `/lots` – Lot Management Endpoints
+### GET `/lots`
 Description: Fetch all lot records.\
 Returns:
 * List of JSON-serializable lot documents.
@@ -185,8 +187,8 @@ response = {
     "Storage_Condition": str,
     "Source": str,
     "Prepared_Fields": {
-        "Method_Step_Reference": str,
-    }
+        "Method_Step_Reference": str
+    },
     "Preparation_Date": str,
     "Expiry_Date": str,
     "Empty_Date": str,
@@ -215,17 +217,18 @@ response = {
 }
 ```
 
-### POST /lots
+### POST `/lots`
 Description: Add a new lot for an existing chemical.\
 Returns:
-* 201 Created or validation error
+* 201 Created
+* 422 with custom validation error message
 
 Request body formats:
 * Purchased and prepared components currently have redundant schema but are defined separately in case of future divergence.
 * Purchased lots
 ```json
 request = {
-    "_id": str,                            # Required. Convertable to ObjectId(). Primary key.
+    "_id": str,                            # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,                    # Required. Links to chemicals._id of existing chemical.
     "Manufacturer_Lot_Batch_Number": str,  # Required.
     "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string.
@@ -236,7 +239,7 @@ request = {
 * Prepared lots:
 ```json
 request = {
-    "_id": str,               # Required. Convertable to ObjectId(). Primary key.
+    "_id": str,               # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
@@ -261,22 +264,23 @@ request = {
 }
 ```
 
-### GET /lots/<lot_id>
+### GET `/lots/<lot_id>`
 Description: Fetch single lot by _id.\
 Returns:
 * JSON lot document
-* See GET /lots/ for single document structure.
+* See [GET](#get-lots) `/lots` for single document structure.
 
-### PUT /lots/<lot_id>
+### PUT `/lots/<lot_id>`
 Description: Update an existing lot\
 Returns:
-* 200 OK or validation errors
+* 200 OK
+* 422 with custom validation error code.
 
 Request body structure:
 * Purchased lots:
 ```json
 request = {
-    "_id": str,                            # Required. Convertable to ObjectId(). Primary key.
+    "_id": str,                            # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,                    # Required. Links to chemicals._id of existing chemical.
     "Manufacturer_Lot_Batch_Number": str,  # Required.
     "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string.
@@ -287,7 +291,7 @@ request = {
 * Prepared lots:
 ```json
 request = {
-    "_id": str,               # Required. Convertable to ObjectId(). Primary key.
+    "_id": str,               # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
@@ -312,13 +316,14 @@ request = {
 }
 ```
 
-### DELETE /lots/<lot_id>
+### DELETE `/lots/<lot_id>`
 Description: Remove lot from database\
 Returns:
-* 204 No Content or 404 Not Found
+* 204 No Content
+* 404 Not Found
 
-## /lists – Controlled Vocabulary List Endpoints
-### GET /lists
+## `/lists` – Controlled Vocabulary List Endpoints
+### GET `/lists`
 Description: Return all list templates.\
 Returns:
 * List of all field list documents.
@@ -327,53 +332,50 @@ Response body format for single document:
 ```json
 response = {
     "Name": str,
-    "List_entries: [
+    "List_entries": [
         str
     ]
 }
 ```
 
-### POST /lists
+### POST `/lists`
 Description: Add a new list.\
 Returns:
-* 201 Created or 422 validation error
+* 201 Created
+* 422 with custom validation error code.
 
 Request body format:
 ```json
 request = {
     "Name": str,
-    "List_entries: [
+    "List_entries": [
         str
     ]
 }
 ```
 
-### GET /lists/<list_name>
+### GET `/lists/<list_name>`
 Description: Return entries for a specific list.\
 Returns:
 * JSON list document
-* See GET /lists for response body format.
+* See [GET](#get-lists) `/lists` for response body format.
 
-### PUT /lists/<list_name>
+### PUT `/lists/<list_name>`
 Description: Update an existing list.\
 Returns:
-* 200 OK or 404 if not found
+* 200 OK
+* 404 if not found
+* 422 with custom validation error code.
+
 
 Request body format:
-* See POST /lists for request body format.
+* See [POST](#post-lists) `/lists` for request body format.
 
 
-### DELETE /lists/<list_name>
+### DELETE `/lists/<list_name>`
 Description: Delete a list from the database.\
 Returns:
 * 204 No Content
-
-
-
-
-
-
-
 
 ## Error Handling
 

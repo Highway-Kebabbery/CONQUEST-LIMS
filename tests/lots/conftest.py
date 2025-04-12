@@ -1,4 +1,7 @@
 """
+See docs/specification.md for a comprehensive view of system 
+integration testing.
+
 # Chemical/Lot Choice as it Pertains to Test Design:
 
 ## Chemical/Lot Choice
@@ -47,7 +50,7 @@ the database.
 * GET requests with malformed primary keys return error code 400
 
 ## HTTP code 404
-* Lots not found in the database returr error code 404.
+* Lots not found in the database return error code 404.
 * Lots with parent chemical templates not found in the database return error code 404.
 
 ## HTTP code 422:

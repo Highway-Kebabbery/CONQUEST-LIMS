@@ -1,3 +1,8 @@
+"""
+See tests/chemicals/conftest.py for a detailed overview of the chemicals 
+testing schstrategyema. See docs/specification.md for a comprehensive view of system 
+integration testing.
+"""
 chemicals_address = "/chemicals"
 
 def test_get_all_chemicals(

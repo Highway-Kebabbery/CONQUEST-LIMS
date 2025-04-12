@@ -1,3 +1,8 @@
+"""
+See tests/chemicals/conftest.py for a detailed overview of the chemicals 
+testing strategy. See docs/specification.md for a comprehensive view of system 
+integration testing.
+"""
 import pytest, copy
 
 from app.utils.validation_error_codes import ValidationErrorCodes
