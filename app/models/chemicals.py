@@ -17,6 +17,8 @@ Validation is short-circuited at the first error detected, so a request
 returned with one error may have multiple issues.
 """
 
+from pymongo.results import InsertOneResult, UpdateResult
+from pymongo.collection import Collection
 from app.utils.helper_functions import HelperFunctions
 from app.utils.validation_error_codes import ValidationErrorCodes
 
@@ -26,10 +28,8 @@ from app.utils.validation_error_codes import ValidationErrorCodes
 
 from bson import ObjectId
 from bson.errors import InvalidId
-
 from datetime import datetime, timezone
-
-from typing import List
+from typing import List, Union
 
 class ChemicalSchema():
     CHEM_ID_KEY = "_id"                       # Using MongoDB's _id field as the primary key for now
@@ -81,7 +81,7 @@ class ChemicalSchema():
         """
         Initialize a ChemicalSchema instance.
 
-        Args:
+        Parameters:
             data (dict): Request body for chemical record.
             chemicals_collection: Reference to MongoDB collection for chemicals.
             lots_collection: Reference to MongoDB collection for lots.
@@ -127,7 +127,7 @@ class ChemicalSchema():
         """
         Query and optionally update aggregate lot availability fields for chemical(s).
 
-        Args:
+        Parameters:
             chemicals_collection: MongoDB collection containing chemical documents.
             lots_collection: MongoDB collection containing lot documents.
             chem_ids (List[str]): List of chemical document _ids.
@@ -191,7 +191,7 @@ class ChemicalSchema():
         """
         Find and return a single chemical document matching the query.
 
-        Args:
+        Parameters:
             query (dict): Any valid MongoDB query dictionary.
             chemicals_collection (optional): Optional override for the chemicals collection.
                 * ChemicalSchema.__init__() sets self._chemicals_collection for both LotSchema
@@ -222,7 +222,7 @@ class ChemicalSchema():
         """
         Retrieve a specific lot record from the lots collection.
 
-        Args:
+        Parameters:
             query (dict): Any valid MongoDB query.
             lots_collection: Reference to MongoDB lots collection.
 
@@ -238,14 +238,14 @@ class ChemicalSchema():
         request_method: str
     ) -> tuple:
         """
-        Validates the chemical requesta form against the defined record schema. Checks
+        Validates the chemical request form against the defined record schema. Checks
         for: presence of required fields and value, validity of value types, presence 
         of list-entry fields values in validated lists, presence of unexpected request
-        fields, existence of chemicals to be updated in the database (PUT), whether the
-        request is a duplicate of an existing record (POST), whether the provided 
+        fields, existence of chemical to be updated in the database (PUT), whether the
+        request is a duplicate of an existing record (POST), and whether the provided 
         primary key is a string form of a valid ObjectId object.
 
-        Args:
+        Parameters:
             request_method (str): HTTP request method, e.g., "POST" or "PUT".
 
         Returns:
@@ -266,9 +266,9 @@ class ChemicalSchema():
             it easier both to skip optional values in the miss_req_value check and to 
             include the "N/A" string as a valid entry for fields not typed as strings. 
             Records would be reconstructed according to the scema definition prior to 
-            record insertion.
+            record insertion. (Mirrors update to LotSchema.validate_lot_form().)
         """
-        error_info = (None, 0)  # (bad_key, error_type)
+        error_info = (None, 0)  # (Field name(s), ValidationErrorCodes error code)
         
         # Validate "Source" field in request first to simplify paths
         if error_info[0] == None:
@@ -500,7 +500,7 @@ class ChemicalSchema():
         """
         Build a chemical record dictionary object for insertion or update.
 
-        Args:
+        Parameters:
             req_method (str): HTTP request method.
             chemical_id (ObjectId): Primary key used for updating aggregate fields (PUT only).
 
@@ -548,11 +548,27 @@ class ChemicalSchema():
 
     def insert_chem_record(
         self,
-        chemicals_collection,
-        record,
-        req_method,
+        chemicals_collection: Collection,
+        record: dict,
+        req_method: str,
         chemical_id: str = ""
-    ):
+    ) -> Union[InsertOneResult, UpdateResult]:
+        """
+        Inserts or updates a chemical document in the chemicals collection.
+
+        Parameters:
+            chemicals_collection (Collection): MongoDB collection where chemical 
+                records are stored.
+            record (dict): Validated chemical data verified by this class ready for 
+                database insertion.
+            req_method (str): HTTP request method ("POST" to insert, "PUT" to update).
+            chemical_id (str, optional): MongoDB ObjectId as a string. Required for 
+                "PUT" requests.
+
+        Returns:
+            InsertOneResult | UpdateResult:
+                Result object from the corresponding database operation.
+        """
         if req_method.upper() == "POST":
             result = chemicals_collection.insert_one(record)
         elif req_method.upper() == "PUT":

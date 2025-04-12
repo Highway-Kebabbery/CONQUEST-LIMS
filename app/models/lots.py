@@ -26,7 +26,7 @@ Prepared lots must contain at least one component. Components exist as
 references to other existing lot records and may be either purchased or 
 prepared materials.
 """
-
+from pymongo.collection import Collection
 from app.utils.helper_functions import HelperFunctions
 from app.utils.validation_error_codes import ValidationErrorCodes
 from app.models.chemicals import ChemicalSchema
@@ -46,13 +46,14 @@ class LotSchema(ChemicalSchema):
     COMPONENTS_KEY = "Components"
 
     # Per component added to prepared material.
+    #
     # Prepared and purchased component schema are currently redundant, but are left
     # split out to aid potential future updates where they diverge.
     PURCH_COMP_SCHEMA = {
         COMP_LOT_KEY: str,
         ChemicalSchema.AMT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.AMT_KEY],        # Calculations with amounts must be performed with Decimal()
         ChemicalSchema.UNIT_KEY: ChemicalSchema.CHEMICAL_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY][ChemicalSchema.UNIT_KEY]
-        }
+    }
     
     PREP_COMP_SCHEMA = {
         COMP_LOT_KEY: str,
@@ -82,7 +83,24 @@ class LotSchema(ChemicalSchema):
         }
     }
 
-    def __init__(self, data, chemicals_collection, lots_collection):
+    def __init__(
+        self,
+        data: dict,
+        chemicals_collection,
+        lots_collection
+    ) -> None:
+        """
+        Initialize a LotSchema object and validate the parent chemical ID. Makes use of
+        ChemicalSchema.__init__().
+        
+        Parameters:
+            data (dict): Lot request payload.
+            chemicals_collection: MongoDB collection for chemical templates.
+            lots_collection: MongoDB collection for lots.
+
+        Raises:
+            Sets internal error state for validation failures related to parent chemical ID.
+        """
         self._lot_request_data = data
         self._check = HelperFunctions()
         self._errs = ValidationErrorCodes()
@@ -93,14 +111,17 @@ class LotSchema(ChemicalSchema):
         # Pop _id to strip _lot_request_data for validation and build.
         if self.LOT_ID_KEY in self._lot_request_data:
             self.__lot_req_id = self._lot_request_data.pop(self.LOT_ID_KEY)
-        # Currently handled above while I use MongoDB's "_id" as the primary key, but that won't always be the case.
+        # The system won't always use MongoDB's "_id" as the primary key; 
+        # this line accounts for that.
         if "_id" in self._lot_request_data:
             self.__mongo_id = self._lot_request_data.pop("_id")
         
         try:
-            # Check for and return the related chemical form's data. This is cleaned in ChemicalSchema.__init__().
-            # The chemicals and lots collections are stored in the ChemicalSchema class, so they have to be passed
-            # using the parameter names in LotSchema.__init__() before they can be referenced using "self."
+            # Check for and return the parent chemical form's data. This is cleaned in 
+            # ChemicalSchema.__init__(). The chemicals and lots collections are 
+            # ChemicalSchema instance parameters and super().__init__() has not been
+            # called yet, so they must be passed using the parameter names in 
+            # LotSchema.__init__() before they can be referenced using "self."
             if self._check.miss_req_field(self.PARENT_CHEM_ID_KEY, self._lot_request_data):
                 self._chem_id_error = [
                     self.PARENT_CHEM_ID_KEY,
@@ -117,7 +138,8 @@ class LotSchema(ChemicalSchema):
             
             elif self._check.wrong_type(
                 self._lot_request_data[self.PARENT_CHEM_ID_KEY],
-                # This checks the type using one schema, but both s chema should always have same type.
+                # This checks the type using the purchased chemical schema, but both schema 
+                # should always have same type and position for this field.
                 self.LOT_SCHEMA[self.PURCH_FIELD_KEY][self.PARENT_CHEM_ID_KEY]
             ):
                 self._chem_id_error = [
@@ -146,8 +168,10 @@ class LotSchema(ChemicalSchema):
             )
             
             # In a LotSchema instance, super().__init__() conveniently cleans up a chemical
-            # query result, but the ChemicalSchema name self._chem_data may be confusing.
-            # Rename to self._chem_data, which makes more sense in the context of
+            # query result, but the ChemicalSchema name "self._chem_data" may be confusing 
+            # in the context of a lot object.
+            #
+            # Rename to "self._chem_data," which makes more sense in the context of
             # LotSchema's use case.
             self._chem_data = self._chem_request_data
         
@@ -157,8 +181,8 @@ class LotSchema(ChemicalSchema):
                 self._errs.INVALID_ID
             ]
         
-        # For the following exceptions: error has been stored. validate_lot_form method
-        #  will catch it immediately.
+        # For the following exceptions: error has been stored. validate_lot_form()
+        # will catch it immediately.
         except KeyError:
             pass
         except ValueError:
@@ -168,13 +192,42 @@ class LotSchema(ChemicalSchema):
         except FileNotFoundError:
             pass
         
-    def validate_lot_form(self, request_method):
+    def validate_lot_form(
+        self,
+        request_method: str
+    ) -> tuple[str | list[str] | None, int]:
         """
-        Internal lot number validation would be added when there's a reliable system to generate internal lot numbers
-        
-        See note in validate_chemical_form for future upgrade idea.
+        Validates the lot request form against the defined record schema. Checks
+        for: presence of required fields and value, validity of value types, presence 
+        of list-entry fields values in validated lists, presence of unexpected request
+        fields, existence of parent chemical template record in the databse, date
+        strings in ISO 8601 format with timezone offset, presence of at least one 
+        component (prepared lots), existence of the lot to be updated or of a lot 
+        referenced in a prepared lot's components in the database (PUT), and 
+        whether the provided primary key is a string form of a valid ObjectId
+        object.
+
+        Parameters:
+            request_method (str): HTTP method, ("POST" or "PUT").
+
+        Returns:
+            tuple: (bad_key(s), validation_error_code). Returns (None, 0) if no errors are found.
+                * ValidationErrorCodes returned: 1, 2, 3, 4, 5, 6, 7, 8, 10, and 11.
+
+        Future updates: 
+            * Maintain current request structure, but flatten requests for validation. It
+            would be easier to separate the concern of validation by field or by validation 
+            check. I would likely create a list of fields for each validation check and loop 
+            through the validation list checking flattened_request[validated_field_list_element] 
+            values in the order that validation checks must be run (missing field, missing 
+            value, wrong type, and invalid list entry, followed by checks like datetime 
+            format, primary key validity, and existence in the database). This would make 
+            it easier both to skip optional values in the miss_req_value check and to 
+            include the "N/A" string as a valid entry for fields not typed as strings. 
+            Records would be reconstructed according to the scema definition prior to 
+            record insertion. (Mirrors update to ChemicalSchema.validate_chemical_form().)
         """
-        # Now is the time to validate error encountered in LotSchema.__init__()
+        # Now is the time to validate errors encountered in LotSchema.__init__()
         error_info = self._chem_id_error
 
         # Check for extra keys in request
@@ -194,7 +247,11 @@ class LotSchema(ChemicalSchema):
                 if request_keys[1] == 0:
                     error_info = ("", self._errs.MISSING_COMP)
                 elif not request_keys[1] == 1:
-                    # Add the correct number of duplicates for component keys from schema
+                    # request_keys[1] returns the number of components in the request. This block
+                    # adds, once for every component in the request beyond one component, each
+                    # field associated with the components schema; including the "Components" key
+                    # itself.This is required for the extra_keys logic to work.
+                    # 
                     # NOTE: This does not currently acconut for whether the requested components
                     # are purchased or prepared components. It does not matter with the current 
                     # schema, but they will need to be de-coupled if the requests for purchased 
@@ -213,11 +270,12 @@ class LotSchema(ChemicalSchema):
         
         # Validate fields in request
         #
-        ## PARENT_CHEM_ID validated in __init__() for type and existence in database.
+        ## PARENT_CHEM_ID validated in LotSchema.__init__() for type and 
+        ## existence in database.
         ##
-        ## Note that a lot itself can have a prepared or purchased parent chemical template,
-        ## but so also can the components of a prepared lot have a purchased or prepared parent
-        ## chemical template.
+        ## Note that a lot itself can have a prepared or purchased parent chemical 
+        ## template, but so also can the components of a prepared lot have a 
+        ## purchased or prepared parent chemical template.
         if error_info[0] == None:
             if self._chem_data[ChemicalSchema.SOURCE_KEY] == "Purchased":
                 purch_schema = self.LOT_SCHEMA[ChemicalSchema.PURCH_FIELD_KEY]
@@ -329,8 +387,9 @@ class LotSchema(ChemicalSchema):
                                 comp_index = self._lot_request_data[key].index(component)
                                 req_comp_dict = self._lot_request_data[key][comp_index]
                                 
-                                # Validate LotSchema.COMP_LOT_KEY first to then determine whether component gets
-                                # prepared lot fields or purchased lot fields from the parent chemical template.
+                                # Validate LotSchema.COMP_LOT_KEY first to then determine whether component 
+                                # gets prepared lot fields or purchased lot fields from the parent chemical 
+                                # template.
                                 if self._check.miss_req_field(
                                     LotSchema.COMP_LOT_KEY,
                                     req_comp_dict
@@ -388,7 +447,8 @@ class LotSchema(ChemicalSchema):
                                     # upstream, but this keeps it robust.
                                     if subkey == self.COMP_LOT_KEY:
                                         continue
-                                    if isinstance(schema_comp_dict[subkey], list):   # "Amount" field
+                                    if isinstance(schema_comp_dict[subkey], list):
+                                        # "Amount" field
                                         if self._check.miss_req_field(
                                             subkey,
                                             req_comp_dict
@@ -455,7 +515,7 @@ class LotSchema(ChemicalSchema):
                                 
 
                                 if not error_info[0] == None:
-                                    # This is in the event that inner loops found invalid data
+                                    # Break outer loop if inner loops found an error
                                     break
 
                         else:
@@ -509,7 +569,7 @@ class LotSchema(ChemicalSchema):
                             break
                     
                     if not error_info[0] == None:
-                        # This is in the event that inner loops found invalid data
+                        # Break outer loop if inner loops found an error
                         break
         
         if error_info[0] == None:        
@@ -536,9 +596,13 @@ class LotSchema(ChemicalSchema):
         
         return error_info
     
-    def build_lot_record(self):
-        # Build dictionary object to insert new lot document using mandatory schema
-        
+    def build_lot_record(self) -> dict:
+        """
+        Build a lot record dictionary object for insertion or update.
+
+        Returns:
+            dict: Validated lot record ready for insertion or update.
+        """
         record = {}
         # Fetch shared fields from chemical schema
         request = self._lot_request_data
@@ -600,12 +664,13 @@ class LotSchema(ChemicalSchema):
             record[self.COMPONENTS_KEY] = []
 
             # Insert each component from the lot record request
+            # 
             # Lot record info shared with parent chemical is pulled from chemical database
-            # where applicable to prevent entry errors
+            # where applicable to prevent entry errors.
             for component in request[self.COMPONENTS_KEY]:
                 component_attrs = {}
 
-                # primary key already evaluated to be valid.
+                # Primary key already evaluated to be valid.
                 component_lot_query = {
                     self.LOT_ID_KEY: ObjectId(component[self.COMP_LOT_KEY])
                 }
@@ -633,7 +698,7 @@ class LotSchema(ChemicalSchema):
 
                     component_attrs[self.COMP_LOT_KEY] = ObjectId(
                         component[self.COMP_LOT_KEY]
-                        )
+                    )
                     component_attrs[self.NAME_KEY] = comp_lot_rec[self.NAME_KEY]
                     component_attrs[self.METH_REF_KEY] = comp_lot_rec_prep[self.METH_REF_KEY]
                     component_attrs[self.AMT_KEY] = component[self.AMT_KEY]
@@ -647,14 +712,28 @@ class LotSchema(ChemicalSchema):
     
     def insert_lot_record(
         self,
-        chemicals_collection,
-        lots_collection,
-        record,
-        req_method,
+        chemicals_collection: Collection,
+        lots_collection: Collection,
+        record: dict,
+        req_method: str,
         lot_id: str = ""
-
     ):
-        # Update lot record and then update parent chemical aggregate fields
+        """
+        Inserts or updates a lot record in the lots collection. Also updates
+        associated aggregate total fields on the related chemical record.
+
+        Parameters:
+            chemicals_collection: MongoDB chemicals collection
+            lots_collection: MongoDB lots collection
+            record (dict): Validated lot data verified by this class ready for database 
+                insertion.
+            req_method (str): HTTP method used ("POST" or "PUT")
+            lot_id (str, optional): Primary key of the lot to update
+
+        Returns:
+            InsertOneResult | UpdateResult:
+                Result object from the database operation.
+        """
         if req_method.upper() == "POST":
             result = lots_collection.insert_one(record)
         
@@ -662,7 +741,7 @@ class LotSchema(ChemicalSchema):
             result = lots_collection.update_one(
                     {LotSchema.LOT_ID_KEY: ObjectId(lot_id)},
                     {"$set": record}
-                )
+            )
 
         ChemicalSchema.query_current_totals(
             chemicals_collection,
