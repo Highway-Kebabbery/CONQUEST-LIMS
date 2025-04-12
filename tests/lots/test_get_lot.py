@@ -1,5 +1,4 @@
-import pytest, copy
-from chemical_inventory_api_v1 import LotSchema
+from app.models.lots import LotSchema
 from tests.lots.conftest import post_all_lots
 
 # Variable names for Water, In-House are verbose to avoid potential future conflict

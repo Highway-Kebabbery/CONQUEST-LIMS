@@ -1,5 +1,7 @@
 import pytest, copy
-from chemical_inventory_api_v1 import ValidationErrorCodes, ChemicalSchema
+
+from app.utils.validation_error_codes import ValidationErrorCodes
+from app.models.chemicals import ChemicalSchema
 
 chemicals_address = "/chemicals"
 

@@ -1,4 +1,4 @@
-from chemical_inventory_api_v1 import ListsSchema
+from app.models.lists import ListsSchema
 
 lists_address = "/lists"
 

@@ -81,7 +81,10 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import pytest, copy
-from chemical_inventory_api_v1 import LotSchema, ValidationErrorCodes
+
+from app.utils.validation_error_codes import ValidationErrorCodes
+from app.models.lots import LotSchema
+
 from tests.conftest import post_all_lots
 
 @pytest.fixture()

@@ -1,5 +1,5 @@
 import copy
-from chemical_inventory_api_v1 import ValidationErrorCodes
+from app.utils.validation_error_codes import ValidationErrorCodes
 
 chemicals_address = "/chemicals"
 

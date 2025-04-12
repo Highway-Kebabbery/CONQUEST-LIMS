@@ -26,10 +26,11 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest, copy, mongomock
-from flask import Flask
-from pymongo import MongoClient
-from chemical_inventory_api_v1 import ChemicalSchema, ListsSchema, LotSchema
-from chemical_inventory_api_v1 import app as flask_app
+
+from app import create_app
+from app.models.lists import ListsSchema
+from app.models.chemicals import ChemicalSchema
+from app.models.lots import LotSchema
 
 chemicals_address = "/chemicals"
 lots_address = "/lots"
@@ -37,6 +38,7 @@ lists_address = "/lists"
 
 @pytest.fixture()
 def app():
+    flask_app = create_app()
     flask_app.config.update({
         "TESTING": True
     })
