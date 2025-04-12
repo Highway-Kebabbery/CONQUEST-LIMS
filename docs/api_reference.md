@@ -23,15 +23,15 @@ Request body structures:
 request = {
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
-    "Classification": str,     # Required. Value from lists.{"Name": "Classifications"}
-    "Storage_Condition": str,  # Required. Value from lists.{"Name": "Storage_Conditions"}
-    "Source": str,             # Required. Value from lists.{"Name": "Sources"}
+    "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
+    "Storage_Condition": str,  # Required. Value from lists {"Name": "Storage_Conditions"}
+    "Source": str,             # Required. Value from lists {"Name": "Sources"}
     "Purchased_Fields": {      # Required.
-        "Manufacturer": str,   # Required. Value from lists.{"Name": "Manufacturers"}
+        "Manufacturer": str,   # Required. Value from lists {"Name": "Manufacturers"}
         "Manufacturer_Part_Number": str,  # Required.
         "Amount": [int, float],           # Required. Either type is acceptable.
-        "Units": str,                     # Required. Value from lists.{"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists.{"Name": "Container_Types"}
+        "Units": str,                     # Required. Value from lists {"Name": "Units"}
+        "Container_Type": str             # Required. Value from lists {"Name": "Container_Types"}
     }
 }
 ```
@@ -41,15 +41,11 @@ request = {
 request = {
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
-    "Classification": str,     # Required. Value from lists.{"Name": "Classifications"}
-    "Storage_Condition": str,  # Required. Value from lists.{"Name": "Storage_Conditions"}
-    "Source": str,             # Required. Value from lists.{"Name": "Sources"}
-    "Purchased_Fields": {      # Required.
-        "Manufacturer": str,   # Required. Value from lists.{"Name": "Manufacturers"}
-        "Manufacturer_Part_Number": str,  # Required.
-        "Amount": [int, float],           # Required. Either type is acceptable.
-        "Units": str,                     # Required. Value from lists.{"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists.{"Name": "Container_Types"}
+    "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
+    "Storage_Condition": str,  # Required. Value from lists {"Name": "Storage_Conditions"}
+    "Source": str,             # Required. Value from lists {"Name": "Sources"}
+    "Prepared_Fields": {      # Required.
+        "Method_Step_Reference": str   # Required.
     }
 }
 ```
@@ -76,7 +72,9 @@ response = {
         "Amount": [int, float],
         "Units": str,
         "Container_Type": str
-    }
+    },
+    "Total_Available_Lots": int,
+    "Total_Open_Lots": int
 }
 ```
 
@@ -91,7 +89,9 @@ response = {
     "Source": str,
     "Prepared_Fields": {
         "Method_Step_Reference": str
-    }
+    },
+    "Total_Available_Lots": int,
+    "Total_Open_Lots": int
 }
 ```
 
@@ -108,15 +108,15 @@ request = {
     "_id": str,                # Required. Convertable to a ObjectId(). Primary key.
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
-    "Classification": str,     # Required. Value from lists.{"Name": "Classifications"}
-    "Storage_Condition": str,  # Required. Value from lists.{"Name": "Storage_Conditions"}
-    "Source": str,             # Required. Value from lists.{"Name": "Sources"}
+    "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
+    "Storage_Condition": str,  # Required. Value from lists {"Name": "Storage_Conditions"}
+    "Source": str,             # Required. Value from lists {"Name": "Sources"}
     "Purchased_Fields": {      # Required.
-        "Manufacturer": str,   # Required. Value from lists.{"Name": "Manufacturers"}
+        "Manufacturer": str,   # Required. Value from lists {"Name": "Manufacturers"}
         "Manufacturer_Part_Number": str,  # Required.
         "Amount": [int, float],           # Required. Either type is acceptable.
-        "Units": str,                     # Required. Value from lists.{"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists.{"Name": "Container_Types"}
+        "Units": str,                     # Required. Value from lists {"Name": "Units"}
+        "Container_Type": str             # Required. Value from lists {"Name": "Container_Types"}
     }
 }
 ```
@@ -127,15 +127,11 @@ request = {
     "_id": str,                # Required. Convertable to a ObjectId(). Primary key.
     "Name": str,               # Required.
     "CAS_Number": str,         # Required.
-    "Classification": str,     # Required. Value from lists.{"Name": "Classifications"}
-    "Storage_Condition": str,  # Required. Value from lists.{"Name": "Storage_Conditions"}
-    "Source": str,             # Required. Value from lists.{"Name": "Sources"}
-    "Purchased_Fields": {      # Required.
-        "Manufacturer": str,   # Required. Value from lists.{"Name": "Manufacturers"}
-        "Manufacturer_Part_Number": str,  # Required.
-        "Amount": [int, float],           # Required. Either type is acceptable.
-        "Units": str,                     # Required. Value from lists.{"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists.{"Name": "Container_Types"}
+    "Classification": str,     # Required. Value from lists {"Name": "Classifications"}
+    "Storage_Condition": str,  # Required. Value from lists {"Name": "Storage_Conditions"}
+    "Source": str,             # Required. Value from lists {"Name": "Sources"}
+    "Prepared_Fields": {      # Required.
+        "Method_Step_Reference": str   # Required.
     }
 }
 ```
@@ -194,7 +190,7 @@ response = {
     "Preparation_Date": str,
     "Expiry_Date": str,
     "Empty_Date": str,
-    "Components": [  # List of dicts, one component per dict
+    "Components": [
         # Purchased chemical/lot component
         {
             "lot_id": ObjectId,
@@ -202,7 +198,7 @@ response = {
             "Manufacturer": str,
             "Manufacturer_Part_Number": str,
             "Manufacturer_Lot_Batch_Number": str,
-            "Amount": [int, float],                # Either is allowed.
+            "Amount": [int, float],
             "Units": str,
             "Expiry_Date": datetime
         },
@@ -243,22 +239,23 @@ request = {
     "_id": str,               # Required. Convertable to ObjectId(). Primary key.
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
-    "Units": str,             # Required. Value from lists.{"Name": "Units"}
-    "Container_Type": str,    # Required. Value from lists.{"Name": "Container_Types"}
+    "Units": str,             # Required. Value from lists {"Name": "Units"}
+    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Types"}
     "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
     "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
     "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
     "Components": [           # Requires >= 1 components.
+        # Purchased chemical/lot component
         {
             "lot_id": str,           # Required. Primary key of an existing lot.
             "Amount": [int, float],  # Required. Either type is acceptable.
-            "Units": str             # Required. Value from lists.{"Name": "Units"}
+            "Units": str             # Required. Value from lists {"Name": "Units"}
         },
         # Prepared chemical/lot components
         {
             "lot_id": str,           # Required. Primary key of an existing lot.
             "Amount": [int, float],  # Required. Either type is acceptable.
-            "Units": str             # Required. Value from lists.{"Name": "Units"}
+            "Units": str             # Required. Value from lists {"Name": "Units"}
         }
     ]
 }
@@ -293,22 +290,23 @@ request = {
     "_id": str,               # Required. Convertable to ObjectId(). Primary key.
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
-    "Units": str,             # Required. Value from lists.{"Name": "Units"}
-    "Container_Type": str,    # Required. Value from lists.{"Name": "Container_Types"}
+    "Units": str,             # Required. Value from lists {"Name": "Units"}
+    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Types"}
     "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
     "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
     "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
     "Components": [           # Requires >= 1 components.
+        # Purchased chemical/lot component
         {
             "lot_id": str,           # Required. Primary key of an existing lot.
             "Amount": [int, float],  # Required. Either type is acceptable.
-            "Units": str             # Required. Value from lists.{"Name": "Units"}
+            "Units": str             # Required. Value from lists {"Name": "Units"}
         },
         # Prepared chemical/lot components
         {
             "lot_id": str,           # Required. Primary key of an existing lot.
             "Amount": [int, float],  # Required. Either type is acceptable.
-            "Units": str             # Required. Value from lists.{"Name": "Units"}
+            "Units": str             # Required. Value from lists {"Name": "Units"}
         }
     ]
 }

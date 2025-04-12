@@ -62,234 +62,116 @@ need to install pymongo and pytest with python container. DO NOT IMPORT bson bec
 
 FOR TESTS ONLY: Install pytest and mongomock
 
-run `pytest` from root directory to test for now. There's another way to do it if I structure the project as a module later, which I don't know if I'm gong to do
-
-list setup:
-{"Name": "Classifications"}, {"List_entries": ["Flammable solvent", "Strong acid", "Weak acid", "Strong base", "Weak base", "Mobile phase", "Reagent", "Standard", "Solid", "Dewer", "Gas cylinder", "Water", "Water Dispenser"]}
-{"Name": "Container_types"}, {"List_entries": ["Ampoule", "Autosampler vial", "Bottle", "Instrument", "Vial"]}
-{"Name": "Manufacturers"}, {"List_entries": ["3M", "Agilent", "Alfa Aesar", "Eppendorf", "Fisher Scientific", "Honeywell", "Sigma-Aldrich", "Thermo Fisher Scientific", "VWR"]}
-{"Name": "Sources"}, {"List_entries": ["Purchased", "Prepared"]}
-{"Name": "Storage_conditions"}, {"List_entries": ["-80 °C", "-20 °C", "2-8 °C", "Ambient", "Ambient, dark", "Room temperature"]}
-{"Name": "Units"}, {"List_entries": ["g", "kg", "L", "mL", "µL"]}
-
-
-I learned many things. one is the use of deepcopy to keep multiple references to the same mutable
-object from ruining it between TESTS
-I learned that it's easy to forget the method parentheses when calling a class method that only serves to return a value from another class defined below the first class =__=
-
-Note that it includes full end-to-end test suite
-
-Note that a lot of the indentation ended up weird... I probably need to configure VS Code.
-    In any case, Writing the entire project was exhausting and I'll come back to clean up
-    formatting later.
-
 I'm going to need to make an update to check environment variable to set client depending on whether it' stest or prod
-
-Future updates: 
-            * Maintain current request structure, but flatten requests for validation. It
-            would be easier to separate the concern of validation by field or by validation 
-            check. I would likely create a list of fields for each validation check and loop 
-            through the validation list checking flattened_request[validated_field_list_element] 
-            values in the order that validation checks must be run (missing field, missing 
-            value, wrong type, and invalid list entry, followed by checks like datetime 
-            format, primary key validity, and existence in the database). This would make 
-            it easier both to skip optional values in the miss_req_value check and to 
-            include the "N/A" string as a valid entry for fields not typed as strings. 
-            Records would be reconstructed according to the scema definition prior to 
-            record insertion.
-
 
 Need to figure out how to automatically swtich based on ENV variable (production vs testing)
 
 
 
-# General lists of things to include in documentation
-Chemical/lot request validation: RRRRRRRRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE Check this section again after testing is complete
-* All fields are present
-* No extra fields are present
-* All fields have the correct type
-* All fields that must be selected from a validated list contain a value from that list
-* Requests to update existing chemical templates contain the ID of a valid chemical template
-in the database (expired chemicals are still allowed to be added as components).
-* Requests to create lots of prepared reagents use valid chemical IDs of chemicals that
-both exist as chemical templates and also have at least one lot logged and ready for use.
-* All non-empty date fields are received as strings in the ISO 8601 format with timezone offsets.
-* Prepared reagents contain at least one chemical component.
-* Requests to update lots are made for valid lot IDs of lots currently existing in the database.
-* When adding a purchased chemical, the system checks to see if the requested combination of
-manufacturer, manufacturer part number, amount, unit, and container type already exists in the
-database to prevent duplicate logging of the same chemical part in multiple templates under
-different names.
-* When adding a prepared chemical, the system checks to see if a chemical template already exists
-in the database for the requested Method/Step Referenceto prevent duplicate logging of the same
-chemical part in multiple templates under different names.
-* The system checks to ensure any ID key is a valid object of the type ObjectId().
-* All required fields have values
-* A real LIMS would specify in the chemicals template for prepared materials the number of components and the
-chemical_id for each, as well as specifying amounts to add and including a space to record the
-actual added amount. Creation of a prepared material would pull the chemical template, fill in
-the required information, and store it as a lot document. This is outside the scope of my
-demonstration portfolio project.
-* Include somewhere in README that I implemented my own primary key for lists collection rather than
-relying on MongoDB's "_id" primary key.
+#############################
+Remaining specifications sections:
+* General function
 
-General schema:
-* Chemical templates store general information on a given part number from a given manufacturer.
-* Lots store information on a specific instance of a chemical (a bottle of purchased material being logged into the lab)
-* The addition of chemical templates is highly validated to prevent system bloat and disorganization from duplicate templates for the same manufacturer part number.
-* Chemical templates must be added before a lot of that chemical can be logged into the system.
-* Purchased materials must be first logged into the system before prepared materials can be logged (edge case).
-* Lists collection stores documents containing validated lists to constrain end-user entry.
-    * Each document contains one list of the form {"Name": <List_Name>}, {"List_entries": [list, of, validated, values]}
-* ListSchema.Name in a given list links to various fields in ChemicalSchema. Lists are named after the fields they constrain.
+    General schema:
+    * Chemical templates store general information on a given part number from a given manufacturer.
+    * Lots store information on a specific instance of a chemical (a bottle of purchased material being logged into the lab)
+    * The addition of chemical templates is highly validated to prevent system bloat and disorganization from duplicate templates for the same manufacturer part number.
+    * Chemical templates must be added before a lot of that chemical can be logged into the system.
+    * Purchased materials must be first logged into the system before prepared materials can be logged (edge case).
+    * Lists collection stores documents containing validated lists to constrain end-user entry.
+        * Each document contains one list of the form {"Name": <List_Name>}, {"List_entries": [list, of, validated, values]}
+    * ListSchema.Name in a given list links to various fields in ChemicalSchema. Lists are named after the fields they constrain.
+    * Agg field behaviour
+
+
+    # Notes for documentation:
+    * All dates must be received by the back end as strings in ISO 8601 format (including timezone offset) and are converted to UTC for storage.
+    * All dates are served to front-end as UTC date strings in ISO 8601 format.
+    * All database keys (currently chemicals._id, lots._id, lots.chemical_id, and Lots.Components.lot_id) must be received by the back end as strings that can be converted to valid ObjectIds.
+    * All database keys of type ObjectId are served to the front end as strings.
+    * lots.chemical_id links to chemicals._id
+    * lots.Components.lot_id links to lots._id
+    * PUT requests for chemicals or lots is expected to come in with a primary key field "_id"
+    * POST requests for chemicals or lots will be stripped of their primary key field "_id" if they have one.
+    * Optional fields are required to be sent with an empty value of None type or the type specified in the 
+    schema. The key cannot be missing.
+    * Do not attempt a PUT request to update a chemical template with the template of another chemical
+    whose lots would need to use the first chemical, the replaced one, as a component. This cannot be enforced
+    until and unless the system is changed to operate in a more rigorous fashion where chemical templates
+    also prescribe prepared lot components and amounts.
+
+    * When writing documentation, note that redundancy of chemical fields in lots documents was chosen because they're needed when getting all lots, and that happens far more often than adding a chemical (the other time they're needed together with lot fields), so slightly larger documents and fewer server requests will be faster on average than having a sctricter separation of concerns in the database. That's also a good point for showing that I'm thinking about the right thing with the document-based database (Add to "Things I learned" section of README.)
 
 
 
+* Future updates
+
+    # Future Upgrades
+    There are several opportunities to improve this code that weren't implemented while building
+    the minimum viable product:
+    * Note that system does not currently reject requests to update (replace) a chemical with 
+    a request for a prepared chemical that uses the replaced chemical in one of its components
+    (This operation would remove the reference required for the new chemical, but it would pass
+    the initial checks because it's an edge case).
+    * Create class ApiErrorCodes to store error messages similar to ValidationErrorCodes
+        * Tests not asserting data["error"].startswith could then be made more robust
+    * Add an optional "Comments" field to all logged lots and chemicals. Must be a string. Max length... 256 chars?
+        * This would allow yo uto log a lot of the water dispenser and note the expiry date is the "PM Due Date."
+    * I want to enter int(0) for "Amount" for the water system lots, but it fails (as it should) for being empty.
+        * Implement a workaround in the case of instruments? This is a super small edge case.
+        * This would be easier once I flatten incoming requests and handle by field rather than with a for-loop
+        dictated by the class schema components
+    * Add "Removed" fields to lots, chemicals, and lists.
+        * Update DELETE end points to set Removed=True rather than actually deleting anything
+    * At some point an audit trail for changes to records would be required. A separate class? Out of scope for a portfolio project.
+    * Consider locking the 'Name" field for edits after record creation. This would effectively make it impossible
+    to completely replace one record (say, a methanol chemical) with another (replacing said methanol record with information for an acetone product).
+    This and the addition of a "Removed" flag to replace true deletion would prevent the complete disappearance of records because the names would always be available.
+    Although a record could be replaced in every field but the "Name," it would be unusable as a replacement because of the locked name field.
+    * Prevent "Open Dates" from being future dates/times.
+    * Prevent empty dates from being earlier than open or prepared dates
+    * Prevent unopened lots from being used as compnents
+    * Prevent expired lots from being opened
+    * Maintain current request structure, but flatten requests for validation. It
+    would be easier to separate the concern of validation by field or by validation 
+    check. I would likely create a list of fields for each validation check and loop 
+    through the validation list checking flattened_request[validated_field_list_element] 
+    values in the order that validation checks must be run (missing field, missing 
+    value, wrong type, and invalid list entry, followed by checks like datetime 
+    format, primary key validity, and existence in the database). This would make 
+    it easier both to skip optional values in the miss_req_value check and to 
+    include the "N/A" string as a valid entry for fields not typed as strings. 
+    Records would be reconstructed according to the scema definition prior to 
+    record insertion.
+
+    * Don't skip over this because it's the most fleshed out record of this idea: Note that this chemical inventory system isn't as robust as it could be. Ideally 
+    prepared reagent chemical templates would constrain which purchased chemicals are allowed
+    to be used for each component, they would constrain the number of components added, and
+    they would also constrain the amounts added of each chemical component. Prepared *lots*
+    would then query not only that the added lot_id exists, but also that it's an instance of
+    (one of) the chemical template(s) mandated for use in that lot component by the prepared lots
+    parent chemical template. Prepared lot compnoents would also have fields to enter the actual
+    amount used of each chemical, and this would potentially be validated against the prescribed
+    amount, though deviations may be acceptable with user audit trail comments (e.g. some SOPs allow
+    for preparation in equal parts at different volumes, like half, double, etc.)
+
+    * A real LIMS would specify in the chemicals template for prepared materials the number of components and the
+    chemical_id for each, as well as specifying amounts to add and including a space to record the
+    actual added amount. Creation of a prepared material would pull the chemical template, fill in
+    the required information, and store it as a lot document. This is outside the scope of my
+    demonstration portfolio project.
 
 
-# Define database schema for prepared and purchased chemicals and prepared and purchased lots
-* Purchased chemicals:
-    record = {
-        "_id": ObjectId,
-        "Name": str,
-        "CAS_Number": str,
-        "Classification": str,
-        "Storage_Condition": str,
-        "Source": str,
-        "Purchased_Fields": {
-            "Manufacturer": str,
-            "Manufacturer_Part_Number": str,
-            "Amount": [int, float],           # Either is allowed. Enforced via validation methods in each schema class.
-            "Units": str,
-            "Container_Type": str
-        }
-        "Available_Total": int,               # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
-        "Available_Open": int                 # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
-    }
-* Prepared chemicals:
-    record = {
-        "_id": ObjectId,
-        "Name": str,
-        "CAS_Number": str,
-        "Classification": str,
-        "Storage_Condition": str,
-        "Source": str,
-        "Prepared_Fields": {
-            "Method_Step_Reference": str
-        }
-        "Available_Total": int,           # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
-        "Available_Open": int             # Optional or removed and ignored in requests. Recalculated when lots are added/updated or when chemicals are updated.
-    }
-* Purchased lots:
-    record = {
-        "_id": ObjectId,
-        "chemical_id": ObjectId,
-        "Name": str,
-        "CAS_Number": str,
-        "Classification": str,
-        "Storage_Condition": str,
-        "Source": str,
-        "Purchased_Fields": {
-            "Manufacturer": str,
-            "Manufacturer_Part_Number": str,
-            "Manufacturer_Lot_Batch_Number": str,
-            "Amount": [int, float],                # Either is allowed. Enforced via validation methods in each schema class.
-            "Units": str,
-            "Container_Type": str
-        }
-        "Open_Date": datetime,
-        "Expiry_Date": datetime,
-        "Empty_Date": datetime
-    }
-* Prepared lots:
-    record = {
-        "_id": ObjectId,
-        "chemical_id": ObjectId,
-        "Name": str,
-        "CAS_Number": str,
-        "Amount": [int, float],                        # Either is allowed. Enforced via validation methods in each schema class.
-        "Units": str,
-        "Container_Type": str,
-        "Classification": str,
-        "Storage_Condition": str,
-        "Source": str,
-        "Prepared_Fields": {
-            "Method_Step_Reference": str
-        }
-        "Preparation_Date": datetime,
-        "Expiry_Date": datetime,
-        "Empty_Date": datetime,
-        "Components": [                                # List of dicts, one component per dict
-            # Purchased chemical/lot component
-            {
-                "lot_id": ObjectId,
-                "Name": str,
-                "Manufacturer": str,
-                "Manufacturer_Part_Number": str,
-                "Manufacturer_Lot_Batch_Number": str,
-                "Amount": [int, float],                # Either is allowed. Enforced via validation methods in each schema class.
-                "Units": str,
-                "Expiry_Date": datetime
-            },
-            # Prepared chemical/lot component
-            {
-                "lot_id": ObjectId,
-                "Name": str,
-                "Method_Step_Reference": str,
-                "Amount": [int, float],
-                "Units": str,
-                "Expiry_Date": datetime
-            }
-        ]
-    }
-
-# Define database schema for validated lists
-    record = {
-        "_id": ObjectId,
-        "Name": str,
-        "List_entries: [
-            str
-        ]
-    }
+#############################
 
 
-# Notes for documentation:
-* All dates must be received by the back end as strings in ISO 8601 format (including timezone offset) and are converted to UTC for storage.
-* All dates are served to front-end as UTC date strings in ISO 8601 format.
-* All database keys (currently chemicals._id, lots._id, lots.chemical_id, and Lots.Components.lot_id) must be received by the back end as strings that can be converted to valid ObjectIds.
-* All database keys of type ObjectId are served to the front end as strings.
-* lots.chemical_id links to chemicals._id
-* lots.Components.lot_id links to lots._id
-* PUT requests for chemicals or lots is expected to come in with a primary key field "_id"
-* POST requests for chemicals or lots will be stripped of their primary key field "_id" if they have one.
-* Optional fields are required to be sent with an empty value of None type or the type specified in the 
-schema. The key cannot be missing.
-* Do not attempt a PUT request to update a chemical template with the template of another chemical
-whose lots would need to use the first chemical, the replaced one, as a component. This cannot be enforced
-until and unless the system is changed to operate in a more rigorous fashion where chemical templates
-also prescribe prepared lot components and amounts.
 
 
-* Don't skip over this because it's the most fleshed out record of this idea: Note that this chemical inventory system isn't as robust as it could be. Ideally 
-prepared reagent chemical templates would constrain which purchased chemicals are allowed
-to be used for each component, they would constrain the number of components added, and
-they would also constrain the amounts added of each chemical component. Prepared *lots*
-would then query not only that the added lot_id exists, but also that it's an instance of
-(one of) the chemical template(s) mandated for use in that lot component by the prepared lots
-parent chemical template. Prepared lot compnoents would also have fields to enter the actual
-amount used of each chemical, and this would potentially be validated against the prescribed
-amount, though deviations may be acceptable with user audit trail comments (e.g. some SOPs allow
-for preparation in equal parts at different volumes, like half, double, etc.)
-* When writing documentation, note that redundancy of chemical fields in lots documents was chosen because they're needed when getting all lots, and that happens far more often than adding a chemical (the other time they're needed together with lot fields), so slightly larger documents and fewer server requests will be faster on average than having a sctricter separation of concerns in the database. That's also a good point for showing that I'm thinking about the right thing with the document-based database (Add to "Things I learned" section of README.)
-* If I really wanted to make this more realistic then I'd change ChemicalSchema to
-StandardReagentTemplate and change LotSchema to StandardReagent. I'd then use
-StandardReagentTemplate to also control both how many components are added to 
-a given prepared reagent (with a forced _id that matches the method reference)
-as well as controlling (really looking ahead) the addition of a test sample with a test
-analysis (e.g. FTIR testing required to release purchased lot of a reagent for
-manufacturing use.) All of that is way out of scope for demonstrating that I can use
-these technologies, though. If I'm going to make a build that ready-to-ship then it'll
-be for something I actually use and/or sell.
+
+
+
+
+
 * A bunch of crap I can probably read later, like when I write documentation:
     * `chemicals` and `lots` collections to avoid constantly re-writing static
     data any time a new lot is added/removed.
@@ -333,10 +215,6 @@ be for something I actually use and/or sell.
     most frequent operation.
 
 
-    
-
-
-
 
 
 # Where to pick up:
@@ -355,30 +233,3 @@ That project tree's really gonna need to be polished last.
 
 
 
-# Future Upgrades
-There are several opportunities to improve this code that weren't implemented while building
-the minimum viable product:
-* Note that system does not currently reject requests to update (replace) a chemical with 
-a request for a prepared chemical that uses the replaced chemical in one of its components
-(This operation would remove the reference required for the new chemical, but it would pass
-the initial checks because it's an edge case).
-* Create class ApiErrorCodes to store error messages similar to ValidationErrorCodes
-    * Tests not asserting data["error"].startswith could then be made more robust
-* Add an optional "Comments" field to all logged lots and chemicals. Must be a string. Max length... 256 chars?
-    * This would allow yo uto log a lot of the water dispenser and note the expiry date is the "PM Due Date."
-* I want to enter int(0) for "Amount" for the water system lots, but it fails (as it should) for being empty.
-    * Implement a workaround in the case of instruments? This is a super small edge case.
-    * This would be easier once I flatten incoming requests and handle by field rather than with a for-loop
-    dictated by the class schema components
-* Add "Removed" fields to lots, chemicals, and lists.
-    * Update DELETE end points to set Removed=True rather than actually deleting anything
-* At some point an audit trail for changes to records would be required. A separate class? Out of scope for a portfolio project.
-* Consider locking the 'Name" field for edits after record creation. This would effectively make it impossible
-to completely replace one record (say, a methanol chemical) with another (replacing said methanol record with information for an acetone product).
-This and the addition of a "Removed" flag to replace true deletion would prevent the complete disappearance of records because the names would always be available.
-Although a record could be replaced in every field but the "Name," it would be unusable as a replacement because of the locked name field.
-* Prevent "Open Dates" from being future dates/times.
-* Prevent empty dates from being earlier than open or prepared dates
-* Prevent unopened lots from being used as compnents
-* Prevent expired lots from being opened
-"""

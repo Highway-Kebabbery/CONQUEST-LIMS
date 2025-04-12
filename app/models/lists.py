@@ -238,6 +238,7 @@ class ListsSchema():
                         error_info = (key, self._errs.WRONG_TYPE)
                         break
                     for entry in self._list_request_data[key]:
+                        # miss_req_value() catches empty lists
                         if self._check.wrong_type(entry, self.LIST_ENTRY_TYPE):
                             error_info = (f"List entry: entry = {str(entry)}", self._errs.WRONG_TYPE)
                             break
