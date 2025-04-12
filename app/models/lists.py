@@ -286,7 +286,7 @@ class ListsSchema():
 
         return record
     
-    def insert_list_record(
+    def insert_update_list_record(
         self,
         lists_collection: Collection,
         record: dict[str, Any],

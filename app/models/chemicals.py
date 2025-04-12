@@ -546,7 +546,7 @@ class ChemicalSchema():
 
         return record
 
-    def insert_chem_record(
+    def insert_update_chem_record(
         self,
         chemicals_collection: Collection,
         record: dict,

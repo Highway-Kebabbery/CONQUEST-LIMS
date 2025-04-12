@@ -58,7 +58,7 @@ def add_list() -> Tuple[Response, int]:
         
         if form_val[1] == 0:
             record = new_list.build_list_record()
-            result = new_list.insert_list_record(
+            result = new_list.insert_update_list_record(
                 current_app.lists,
                 record,
                 request.method
@@ -128,7 +128,7 @@ def update_list(list_name) -> Tuple[Response, int]:
 
         if form_val[1] == 0:
             record = updated_list.build_list_record()
-            result = updated_list.insert_list_record(
+            result = updated_list.insert_update_list_record(
                 current_app.lists,
                 record,
                 request.method,

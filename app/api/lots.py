@@ -77,7 +77,7 @@ def add_lot() -> Tuple[Response, int]:
         
         if form_val[1] == 0:
             record = new_lot.build_lot_record()
-            result = new_lot.insert_lot_record(
+            result = new_lot.insert_update_lot_record(
                 current_app.chemicals,
                 current_app.lots,
                 record,
@@ -168,7 +168,7 @@ def update_lot(lot_id) -> Tuple[Response, int]:
         if form_val[1] == 0:
             try:
                 record = updated_lot.build_lot_record()
-                result = updated_lot.insert_lot_record(
+                result = updated_lot.insert_update_lot_record(
                     current_app.chemicals,
                     current_app.lots,
                     record,

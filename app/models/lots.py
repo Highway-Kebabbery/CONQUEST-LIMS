@@ -710,7 +710,7 @@ class LotSchema(ChemicalSchema):
 
         return record
     
-    def insert_lot_record(
+    def insert_update_lot_record(
         self,
         chemicals_collection: Collection,
         lots_collection: Collection,

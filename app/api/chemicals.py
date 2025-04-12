@@ -83,7 +83,7 @@ def add_chemical() -> Tuple[Response, int]:
 
         if form_val[1] == 0:
             record = new_chemical.build_chem_record(request.method)
-            result = new_chemical.insert_chem_record(
+            result = new_chemical.insert_update_chem_record(
                 current_app.chemicals,
                 record,
                 request.method
@@ -179,7 +179,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
                     chemical_id
                 )
 
-                result = updated_chemical.insert_chem_record(
+                result = updated_chemical.insert_update_chem_record(
                     current_app.chemicals,
                     record,
                     request.method,
