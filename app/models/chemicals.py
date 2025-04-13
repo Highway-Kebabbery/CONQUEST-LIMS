@@ -140,6 +140,11 @@ class ChemicalSchema():
         # Lazy import to break circular reference
         from app.models.lots import LotSchema
 
+        # GET requests on an empty database fail unless variables are defined here.
+        current_avail_total = 0
+        current_avail_open = 0
+
+
         for id in chem_ids:
             if isinstance(id, str):
                 ObjectId(id)

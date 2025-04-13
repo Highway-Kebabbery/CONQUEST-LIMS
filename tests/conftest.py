@@ -143,22 +143,41 @@ def valid_purchased_chemical_3():
     return valid_purchased_chemical_3
 
 @pytest.fixture()
+def valid_purchased_chemical_4():
+    valid_purchased_chemical_4 = {
+        ChemicalSchema.NAME_KEY: "Milli-Q IQ 7000 Ultrapure Water Purification System",
+        ChemicalSchema.CAS_KEY: "7732-18-5",
+        ChemicalSchema.CLASSIF_KEY: "Water Dispenser",
+        ChemicalSchema.STORAGE_KEY: "Ambient",
+        ChemicalSchema.SOURCE_KEY: "Purchased",
+        ChemicalSchema.PURCH_FIELD_KEY: {
+            ChemicalSchema.MANU_KEY: "Milli-Q",
+            ChemicalSchema.MANU_PN_KEY: "ZIQ7000T0C",
+            ChemicalSchema.AMT_KEY: 99999,
+            ChemicalSchema.UNIT_KEY: "N/A",
+            ChemicalSchema.CONT_TYPE_KEY: "Instrument"
+        }
+    }
+
+    return valid_purchased_chemical_4
+
+@pytest.fixture()
 def val_purch_chems(
     client,
     post_all_lists,
-    valid_purchased_chemical_2,
-    valid_purchased_chemical_3
+    valid_purchased_chemical_3,
+    valid_purchased_chemical_4
 ):
     """
-    valid_purchased_chemical_1, valid_purchased_chemical_2, and valid_purchased_chemical_3 build objects available
-    for chemicals testing. This method posts them for lots testing. Only the last two objects are needed.
+    valid_purchased_chemical_<1-4> build objects available for chemicals testing. 
+    This method posts them for lots testing. Only the last two objects are needed.
     """
-    val_purch_chem_1 = valid_purchased_chemical_2
+    val_purch_chem_1 = valid_purchased_chemical_4
     val_purch_chem_2 = valid_purchased_chemical_3
 
     response_1 = client.post(chemicals_address, json=val_purch_chem_1)
     response_2 = client.post(chemicals_address, json=val_purch_chem_2)
-
+    
     assert response_1.status_code == 201
     assert response_2.status_code == 201
 
@@ -206,14 +225,34 @@ def valid_prepared_chemical_2():
     return valid_prepared_chemical_2
 
 @pytest.fixture()
+def valid_prepared_chemical_3():
+    # Prepared chemical using only purchased components
+    valid_prepared_chemical_3 = {
+        ChemicalSchema.NAME_KEY: "Water, in-house",
+        ChemicalSchema.CAS_KEY: "7732-18-5",
+        ChemicalSchema.CLASSIF_KEY: "Water",
+        ChemicalSchema.STORAGE_KEY: "Ambient",
+        ChemicalSchema.SOURCE_KEY: "Prepared",
+        ChemicalSchema.PREP_FIELD_KEY: {
+            ChemicalSchema.METH_REF_KEY: "N/A"
+            }
+    }
+
+    return valid_prepared_chemical_3
+
+@pytest.fixture()
 def val_prep_chems(
     client,
     post_all_lists,
     valid_prepared_chemical_1,
-    valid_prepared_chemical_2
+    valid_prepared_chemical_3
 ):
-    val_prep_chem_1 = valid_prepared_chemical_1
-    val_prep_chem_2 = valid_prepared_chemical_2
+    """
+    valid_prepared_chemical_1, valid_prepared_chemical_2, and valid_prepared_chemical_3 build objects available
+    for chemicals testing. This method posts them for lots testing. Only the first and last objects are needed.
+    """
+    val_prep_chem_1 = valid_prepared_chemical_3
+    val_prep_chem_2 = valid_prepared_chemical_1
 
     response_1 = client.post(chemicals_address, json=val_prep_chem_1)
     response_2 = client.post(chemicals_address, json=val_prep_chem_2)
@@ -250,8 +289,8 @@ def val_purch_lots(val_purch_chems):
         LotSchema.PARENT_CHEM_ID_KEY: val_purch_chem_milliq_id,
         LotSchema.MANU_LOT_KEY: "124078GSJDLKGH98245-1254",
         LotSchema.OPEN_KEY: "2024-12-21T14:30:00-04:00",
-        LotSchema.EXPIRY_KEY:"2025-12-21T23:59:59-04:00",
-        LotSchema.EMPTY_KEY: None,
+        LotSchema.EXPIRY_KEY: "2025-12-21T23:59:59-04:00",
+        LotSchema.EMPTY_KEY: None
     }
 
     val_purch_lot_2 = {
@@ -259,7 +298,7 @@ def val_purch_lots(val_purch_chems):
         LotSchema.MANU_LOT_KEY: "00142J678F",
         LotSchema.OPEN_KEY: "2025-04-06T14:30:00-04:00",
         LotSchema.EXPIRY_KEY: "2028-04-06T14:30:00-04:00",
-        LotSchema.EMPTY_KEY: None,
+        LotSchema.EMPTY_KEY: None
     }
 
     return {

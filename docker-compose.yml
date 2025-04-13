@@ -1,0 +1,21 @@
+services:
+  web:
+    build: .
+    container_name: conquest-lims-api
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/conquest
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6
+    container_name: conquest-lims-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

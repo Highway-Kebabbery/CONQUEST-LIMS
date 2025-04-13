@@ -1,2 +1,4 @@
-Flask
-pymongo
+flask==2.3.3
+pymongo==4.6.1
+mongomock
+pytest
