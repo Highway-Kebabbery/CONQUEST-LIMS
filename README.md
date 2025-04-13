@@ -1,19 +1,20 @@
 # <div align="center">CONQUEST-LIMS</div>
 ## Description
-CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust validation system and supports CRUD operations for chemical templates, lot records, and field-validated entry lists.
+CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust validation system and supports CRUD operations for chemical templates, lot records, and lists used to control validated-entry fields..
 
 ## Features
 ### Current
-* Chemical templates: Defines a unique combinations of manufacturer, part number, and container data to standardize the entry of standards and reagents and avoid the creation of duplicate entries.
-* Lot management: Record and manage bottles or containers tied to a specific chemical template.
+* Chemical templates: Defines a chemical with a unique combination of manufacturer, manufacturer part number, amount, units, and container type which distinguishes it from other chemicals in order to standardize the entry of standards and reagents in the system and avoid the creation of duplicate entries.
+* Lot management: Record and manage bottles or containers tied to a specific chemical template. Record which chemical lots were used in the preparation of prepared chemical lots.
 * Supports separate, tailored data for in-house prepared standards or reagents and externally purchased standards or reagents.
-* Supports validated field entry using lists of approved values to harmonize the entry of data in important fields across all users.
-* Robust, schema-level validation to guarantee adherance to database schema.
-* Offers an API with CRUD endpoints for all record types following RESTful design principles.
-* A robust, full integration test suite validating all data flows across all schema using `pytest` and `mongomock`.
+* Supports validated field entry using lists of approved values to harmonize system-wide data entry in key fields.
+* Robust, schema-level validation guarantees adherance to database schema.
+* Offers an API with CRUD endpoints following RESTful design principles for all record types.
+* Includes a robust, full integration testing suite that validates all data flows across all schema using `pytest` and `mongomock`.
+* Containerized using Docker to ensure consistent deployment across all platforms.
 
 ### Planned:
-* The app is currently undergoing containerization using Docker and orchestration using Minikube.
+* The app is currently undergoing orchestration using Minikube.
 * Following this, ElasticSearch will be implemented for fuzzy searches of chemical and lot names.
 * For a detailed list of additional planned upgrades, please refer to [docs/specification.md](./docs/specification.md)
 
@@ -113,6 +114,7 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
             }
         }'
     ```
+* Try running the integration testing suite using `docker exec -it conquest-lims-api pytest`.
 
 ### Software Requirements
 (Fill this out once app is containerized. Probably won't change after implementing ElasticSearch.)
