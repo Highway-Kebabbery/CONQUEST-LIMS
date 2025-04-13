@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: conquest-api
+  name: conquest-lims-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: conquest-api
+      app: conquest-lims-api
   template:
     metadata:
       labels:
-        app: conquest-api
+        app: conquest-lims-api
     spec:
       containers:
-      - name: conquest-api-container
-        image: conquest-api-image:latest
+      - name: conquest-lims-api
+        image: conquest-lims-api:latest
         ports:
         - containerPort: 5000
       env:
