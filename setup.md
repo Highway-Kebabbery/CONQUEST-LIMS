@@ -47,9 +47,6 @@ _____
 
 May want to include in setup script something to set uLimits for MongoDB (this may also affect elasticsearch)
 
-
-need to install pymongo and pytest with python container. DO NOT IMPORT bson because that comes with pymongo, but theres an Ubuntu bson package and it won't work. You'll have to do a clean reinstall of pymongo after removing bson if you install it.
-
 FOR TESTS ONLY: Install pytest and mongomock
 
 I'm going to need to make an updatAle to check environment variable to set client depending on whether it' stest or prod
@@ -57,7 +54,8 @@ I'm going to need to make an updatAle to check environment variable to set clien
 Need to figure out how to automatically swtich based on ENV variable (production vs testing)
 
 
-
+Kubernetes:
+* Run setup.sh from outside cluster once pods are up?
 
 
 
