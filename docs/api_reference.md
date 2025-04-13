@@ -230,9 +230,9 @@ Request body formats:
 request = {
     "chemical_id": str,                    # Required. Links to chemicals._id of existing chemical.
     "Manufacturer_Lot_Batch_Number": str,  # Required.
-    "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string.
-    "Expiry_Date": str,                    # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": str,                     # Optional. Timezone-aware ISO 8601 string.
+    "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": str,                    # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": str,                     # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
 }
 ```
 * Prepared lots:
@@ -242,9 +242,9 @@ request = {
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
     "Container_Type": str,    # Required. Value from lists {"Name": "Container_Type"}
-    "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
-    "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
+    "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
     "Components": [           # Requires >= 1 components.
         # Purchased chemical/lot component
         {
@@ -281,9 +281,9 @@ request = {
     "_id": str,                            # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,                    # Required. Links to chemicals._id of existing chemical.
     "Manufacturer_Lot_Batch_Number": str,  # Required.
-    "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string.
-    "Expiry_Date": str,                    # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": str,                     # Optional. Timezone-aware ISO 8601 string.
+    "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": str,                    # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": str,                     # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
 }
 ```
 * Prepared lots:
@@ -294,9 +294,9 @@ request = {
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
     "Container_Type": str,    # Required. Value from lists {"Name": "Container_Type"}
-    "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
-    "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
+    "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
     "Components": [           # Requires >= 1 components.
         # Purchased chemical/lot component
         {

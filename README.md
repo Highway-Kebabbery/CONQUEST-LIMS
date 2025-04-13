@@ -22,7 +22,7 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
 (DRAFT, THIS IS A DRAFT)
 * Install and configure Windows Subsystem for Linux (WSL) (DRAFT, THIS WILL BE FLESHED OUT)
 * Download the project and navigate to the root directory of the project.
-* Run the command `chmod +x scripts/clean.sh setup.sh`.
+* Run the command `chmod +x setup.sh`.
 * Run the command `./setup.sh` to initialize the database and load example data.
 * Run the command `scripts/clean.md` when finished to clean up containers and database volumes.
 * Send GET requests to each end point using:
@@ -120,7 +120,52 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
 (Fill this out once app is containerized. Probably won't change after implementing ElasticSearch.)
 
 ### Project Structure
-(Come back and fill this in once the project is completely finished. In the meantime, check [here](./docs/specification.md/#project-structure)
+```bash
+CONQUEST-LIMS/
+│
+├── app/
+│   ├── __init__.py               # Initializes Flask app and MongoDB client
+│   ├── api/                      # Flask Blueprints for API endpoints
+│   │   ├── chemicals.py
+│   │   ├── lists.py
+│   │   └── lots.py
+│   │
+│   ├── models/                   # Schema validation and transformation classes
+│   │   ├── chemicals.py
+│   │   ├── lists.py
+│   │   └── lots.py
+│   │
+│   └── utils/                    # Supporting validation logic and constants
+│       ├── helper_functions.py
+│       └── validation_error_codes.py
+│    
+├── docs/
+│   ├── api_reference.md          # Documentation for API end points
+│   └── specifications.md         # This document
+│
+├── k8s/                          # Kubernetes deployment files
+│   ├── app-deployment.yaml
+│   ├── app-service.yaml
+│   ├── mongo-deployment.yaml
+│   └── mongo-service.yaml
+│
+├── scripts/                      # Kubernetes deployment files
+│   ├── clean.sh                  # Tears down containers and volumes
+│   ├── load_data.sh              # Called in setup.sh
+│   └── smoke_test.sh             # Called in setup.sh
+│
+├── tests/                        # Full integration test suite for each module and edge cases
+│
+├── Dockerfile                    # Defines the app container image
+├── docker-compose.yml
+├── requirements.txt
+│
+├── run.py                        # Entry point for the app from Dockerfile
+│
+├── README.md
+│
+└── setup.sh                      # Entry point for the system from the terminal
+```
 
 ### (Setting up environment (WSL, etc.))
 

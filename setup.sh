@@ -50,10 +50,16 @@ docker compose up --build -d
 echo "Waiting for services to stabilize..."
 sleep 5
 
+# Make scripts executable
+chmod +x scripts/*.sh
+
 # Load required and demonstration objects
 echo "Loading initial database content..."
-chmod +x scripts/load_data.sh
 bash scripts/load_data.sh
+
+# Run smoke tests
+echo "Running smoke tests..."
+bash scripts/smoke_test.sh
 
 # Donezo
 echo "Setup complete. Visit http://localhost:5000/"

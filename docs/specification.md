@@ -65,12 +65,27 @@ CONQUEST-LIMS/
 │   └── specifications.md         # This document
 │
 ├── k8s/                          # Kubernetes deployment files
+│   ├── app-deployment.yaml
+│   ├── app-service.yaml
+│   ├── mongo-deployment.yaml
+│   └── mongo-service.yaml
 │
+├── scripts/                      # Kubernetes deployment files
+│   ├── clean.sh                  # Tears down containers and volumes
+│   ├── load_data.sh              # Called in setup.sh
+│   └── smoke_test.sh             # Called in setup.sh
 │
-├── tests/                        # Full test suite for each module and edge cases
-├── run.py                        # Entrypoint to run the Flask app
+├── tests/                        # Full integration test suite for each module and edge cases
+│
+├── Dockerfile                    # Defines the app container image
+├── docker-compose.yml
 ├── requirements.txt
-└── Dockerfile                    # Defines the container image for the application
+│
+├── run.py                        # Entry point for the app from Dockerfile
+│
+├── README.md
+│
+└── setup.sh                      # Entry point for the system from the terminal
 ```
 
 ## API Endpoints
@@ -164,9 +179,9 @@ record = {
         "Units": str,                          # Required. From parent chemical.
         "Container_Type": str                  # Required. From parent chemical.
     }
-    "Open_Date": datetime,                     # Optional. Timezone-aware ISO 8601 string.
-    "Expiry_Date": datetime,                   # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": datetime                     # Optional. Timezone-aware ISO 8601 string.
+    "Open_Date": datetime,                     # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": datetime,                   # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": datetime                     # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
 }
 ```
 * Prepared lots
@@ -185,9 +200,9 @@ record = {
     "Prepared_Fields": {                           # Required. From parent chemical.
         "Method_Step_Reference": str               # Required. From parent chemical.
     }
-    "Preparation_Date": datetime,                  # Required. Timezone-aware ISO 8601 string.
-    "Expiry_Date": datetime,                       # Required. Timezone-aware ISO 8601 string.
-    "Empty_Date": datetime,                        # Optional. Timezone-aware ISO 8601 string.
+    "Preparation_Date": datetime,                  # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Expiry_Date": datetime,                       # Required. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
+    "Empty_Date": datetime,                        # Optional. Timezone-aware ISO 8601 string (UTC offset of the form -00:00).
     "Components": [                                # Required. Must be >= 1 components.
         {
             "lot_id": ObjectId,                    # Required. Primary key of an existing lot.

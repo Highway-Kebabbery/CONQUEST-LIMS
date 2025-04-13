@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conquest-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: conquest-api
+  template:
+    metadata:
+      labels:
+        app: conquest-api
+    spec:
+      containers:
+      - name: conquest-api-container
+        image: conquest-api-image:latest
+        ports:
+        - containerPort: 5000
+      env:
+        - name: MONGO_URI
+          value: mongodb://mongo:27017/conquest_lims
