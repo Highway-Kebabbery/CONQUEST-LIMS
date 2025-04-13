@@ -18,8 +18,101 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
 * For a detailed list of additional planned upgrades, please refer to [docs/specification.md](./docs/specification.md)
 
 ## How to Use
-
-(Fill this out once app is containerized. Probably won't change after implementing ElasticSearch.)
+(DRAFT, THIS IS A DRAFT)
+* Install and configure Windows Subsystem for Linux (WSL) (DRAFT, THIS WILL BE FLESHED OUT)
+* Download the project and navigate to the root directory of the project.
+* Run the command `chmod +x scripts/clean.sh setup.sh`.
+* Run the command `./setup.sh` to initialize the database and load example data.
+* Run the command `scripts/clean.md` when finished to clean up containers and database volumes.
+* Send GET requests to each end point using:
+    * `curl http://localhost:5000/`
+    * `curl http://localhost:5000/chemicals`
+    * `curl http://localhost:5000/lots`
+    * `curl http://localhost:5000/lists`
+* Log an example chemical template (for fun!):
+    * Copy/paste this command into your terminal and execute it.
+    ```bash
+    curl -s -X POST "http://localhost:5000/chemicals" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "Name": "Methanol (Certified ACS), Fisher Chemical",
+            "CAS_Number": "67-56-1",
+            "Classification": "Flammable solvent",
+            "Storage_Condition": "Ambient",
+            "Source": "Purchased",
+            "Purchased_Fields": {
+                "Manufacturer": "Fisher Scientific",
+                "Manufacturer_Part_Number": "A412-4",
+                "Amount": 4,
+                "Units": "L",
+                "Container_Type": "Bottle"
+            }
+        }'
+    ```
+    * It didn't work, did it? Did you check to make sure there wasn't already a chemical in the system for the template you were trying to log?
+* Try logging another chemical!:
+    * Copy/paste this command into your terminal and execute it.
+    ```bash
+    curl -s -X POST "http://localhost:5000/chemicals" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
+            "CAS_Number": "1493-13-6",
+            "Classification": "Strong Acid",
+            "Storage_Condition": "Ambient",
+            "Source": "Purchased",
+            "Purchased_Fields": {
+                "Manufacturer": "Fisher Scientific",
+                "Manufacturer_Part_Number": " AC169890011",
+                "Amount": 1,
+                "Units": "L",
+                "Container_Type": "Bottle"
+            }
+        }'
+    ```
+    * Ah, that didn't work, either, did it? Did you run `curl http://localhost:5000/lists` to see which fields are validated entry fields, or did you believe that you could trust me?
+* Log a fun chemical (for real this time!):
+    * Copy/paste this command into your terminal and execute it.
+    ```bash
+    curl -s -X POST "http://localhost:5000/chemicals" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
+            "CAS_Number": "1493-13-6",
+            "Classification": "Strong acid",
+            "Storage_Condition": "Ambient",
+            "Source": "Purchased",
+            "Purchased_Fields": {
+                "Manufacturer": "Fisher Scientific",
+                "Manufacturer_Part_Number": " AC169890011",
+                "Amount": 1,
+                "Units": "L",
+                "Container_Type": "Bottle"
+            }
+        }'
+    ```
+* Oops, it looks like trifluoromethanesulfonic acid isn't quite as fun as it sounds. We need to update its description in the database.
+    * (DRAFTING DOCUMENT. THIS IS A GOOD PLACE TO ENCOURAGE USE OF THE ELASTIC SEARCH FUNCTIONALITY TO FIND THIS CHEMICAL BY NAME TO GET THE PRIMARY KEY FOR A PUT REQUEST. FOR NOW THEY CAN JUST SEND A GET REQUEST OR LOOK AT THE RETURNED "inserted_id" FIELD FROM TEN SECONDS AGO.)
+    * Please paste this completely valid command into your terminal, update it with trifluoromethanesulfonic acid's "_id," and then execute your request.
+    ```bash
+    curl -s -X PUT "http://localhost:5000/chemicals/<chemical_id>" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "_id": <chemical_id>,
+            "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
+            "CAS_Number": "1493-13-6",
+            "Classification": "Super acid",
+            "Storage_Condition": "Ambient",
+            "Source": "Purchased",
+            "Purchased_Fields": {
+                "Manufacturer": "Fisher Scientific",
+                "Manufacturer_Part_Number": " AC169890011",
+                "Amount": 1,
+                "Units": "L",
+                "Container_Type": "Bottle"
+            }
+        }'
+    ```
 
 ### Software Requirements
 (Fill this out once app is containerized. Probably won't change after implementing ElasticSearch.)

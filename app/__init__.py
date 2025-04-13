@@ -33,11 +33,15 @@ def create_app():
 
     # Only initialize MongoDB client if it hasn't been injected (e.g., during testing)
     if not hasattr(app, "mongo_client"):
-        # app.mongo_client = MongoClient("mongodb-service", 27017)    # Use this client for production
-        app.mongo_client = MongoClient("localhost", 27017)  # Use this client for testing directly in WSL with MongoDB
+        app.mongo_client = MongoClient("conquest-lims-db", 27017)    # Use this client for production
+        # app.mongo_client = MongoClient("localhost", 27017)  # Use this client for testing directly in WSL with MongoDB
         app.db = app.mongo_client.conquest_lims
         app.chemicals = app.db.chemicals
         app.lots = app.db.lots
         app.lists = app.db.lists
+    
+    @app.route("/")
+    def index():
+        return "Prepare to VANQUISH your competition.\n"
 
-        return app
+    return app

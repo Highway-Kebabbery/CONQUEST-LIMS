@@ -21,7 +21,12 @@ Chemical data are duplicated onto lot records in an attempt to work with the doc
 
 All records are stored in MongoDB and served via a Flask-based API. Validation is enforced at the schema level through dedicated classes to ensure data harmonization and integrity.
 
+CONQUEST LIMS is currently successfully containerized using Docker to allow for deployment almost anywhere. Local orchestration via Minikube is under development.
+
 ## Important Usage Information
+* Initial configuration:
+    * All lists for validated entry fields must be created before any object with a validated entry field can be created.
+    *Purchased chemicals/lots should be created first, followed by prepared chemicals/lots that use only purchased lots as components.
 * lots.chemical_id links to chemicals._id.
 * lots.Components.lot_id links to lots._id.
 * Optional fields are required to be sent with an empty value of either `None` type or of the type specified in the schema. The key cannot be missing.
@@ -119,7 +124,7 @@ record = {
         "Manufacturer_Part_Number": str,  # Required
         "Amount": [int, float],           # Required. Either type is acceptable.
         "Units": str,                     # Required. Value from lists {"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists {"Name": "Container_Types"}
+        "Container_Type": str             # Required. Value from lists {"Name": "Container_Type"}
     }
     "Total_Available_Lots": int,               # Initialized on POST /chemicals. Recalculated on POST/PUT /lots or GET/PUT /chemicals.
     "Total_Open_Lots": int                 # Initialized on POST /chemicals. Recalculated on POST/PUT /lots or GET/PUT /chemicals.
@@ -173,7 +178,7 @@ record = {
     "CAS_Number": str,                             # Required. From parent chemical.
     "Amount": [int, float],                        # Required. Either type.
     "Units": str,                                  # Required. Value from lists {"Name": "Units"}
-    "Container_Type": str,                         # Required. Value from lists {"Name": "Container_Types"}
+    "Container_Type": str,                         # Required. Value from lists {"Name": "Container_Type"}
     "Classification": str,                         # Required. From parent chemical.
     "Storage_Condition": str,                      # Required. From parent chemical.
     "Source": str,                                 # Required. From parent chemical.
@@ -349,10 +354,12 @@ All fields in the lot request body, the primary key (if applicable), and the nat
 All schema modules are tested to ensure that multiple errors will short-circuit and return the first error.
 
 ## Future Upgrades
+* Separate field notes from request schema in app/docs/api_reference.md for easier copying and pasting.
 * The chemical inventory module of CONQUEST LIMS isn't as robust as it could be. Ideally prepared reagent chemical templates would prescribe which purchased chemicals are allowed to be used for each component, they would prescribe the number of components added, and they would also prescribe the amounts added of each chemical component. Prepared *lots* would then query their parent chemical to receive the prescribed component configurations (chemical_ids, amounts, units). Lots would then receive fields to record the actual amount used for each component, and this field could potentially be validated against the prescribed amount.
 * Reject requests to replace a chemical template with a chemical that requires the replaced chemical as a preparation component.
     * This cannot be achieved until the system is reconfigured to mirror the change notes above.
     * This is an edge case.
+* Introduce character limits for each field.
 * Create an APIErrorCodes module similar to ValidationErrorCodes to harmonize and centralize the generation of error codes not related to request content.
     * Tests anticipating these error codes can then be made more robust/integrated by calling the reference to the set value in the APIErrorCodes module.
 * Add an optional "Comments" field to all chemical, lot, and component records to allow users to include preparation notes.

@@ -1,6 +1,4 @@
 * Need to install WSL
-* Need to install Docker
-* Need to initiate Docker
 
 Setting up dev environment: https://learn.microsoft.com/en-us/windows/python/web-frameworks
     Write my own instructions. but note that they can r eference this page for help
@@ -9,8 +7,6 @@ So this seems to be the master instruction for setting up dev environment:
 https://learn.microsoft.com/en-us/windows/wsl/setup/environment
 End user will need to:
 * Set up WSL
-* Set up Docker
-* Set up Minikube
 * ...maybe that's all? I should be able to write the setup of python and mongodb and ElasticSearch into the dockerfiles, right?
     * When writing code to install mongodb, I need to account for which version of Ubuntu they use (btw, note that it needs to be run on Ubuntu) https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#std-label-install-mdb-community-ubuntu
 
@@ -31,12 +27,7 @@ Setup Strategy Summary (for scratchpad)
 
     Use requirements.txt to pin Python dependencies like:
 
-flask==2.3.3
-pymongo==4.6.1
-
-In Dockerfiles, pin base image versions like:
-
-FROM python:3.11-slim
+pin pytest and pymongo dependencies in requirements.txtr?
 
 Pin image versions in Kubernetes manifests or docker-compose.yml like:
 
@@ -56,7 +47,6 @@ _____
 
 May want to include in setup script something to set uLimits for MongoDB (this may also affect elasticsearch)
 
-running mongodb: https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/#std-label-install-mdb-community-ubuntu
 
 need to install pymongo and pytest with python container. DO NOT IMPORT bson because that comes with pymongo, but theres an Ubuntu bson package and it won't work. You'll have to do a clean reinstall of pymongo after removing bson if you install it.
 
@@ -65,6 +55,14 @@ FOR TESTS ONLY: Install pytest and mongomock
 I'm going to need to make an updatAle to check environment variable to set client depending on whether it' stest or prod
 
 Need to figure out how to automatically swtich based on ENV variable (production vs testing)
+
+
+
+
+
+
+
+
 
 
 
@@ -78,4 +76,5 @@ Need to figure out how to automatically swtich based on ENV variable (production
 * Finish README
 * Proofread README.md, specification.md, and api_reference.md
     * api_reference.md needs error code returns standardized. Use testing strategy section for this.
+    * Project file trees in both need final update
 * Make sure entire app can be loaded programmatically with shell script.

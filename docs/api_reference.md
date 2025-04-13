@@ -31,7 +31,7 @@ request = {
         "Manufacturer_Part_Number": str,  # Required.
         "Amount": [int, float],           # Required. Either type is acceptable.
         "Units": str,                     # Required. Value from lists {"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists {"Name": "Container_Types"}
+        "Container_Type": str             # Required. Value from lists {"Name": "Container_Type"}
     }
 }
 ```
@@ -117,7 +117,7 @@ request = {
         "Manufacturer_Part_Number": str,  # Required.
         "Amount": [int, float],           # Required. Either type is acceptable.
         "Units": str,                     # Required. Value from lists {"Name": "Units"}
-        "Container_Type": str             # Required. Value from lists {"Name": "Container_Types"}
+        "Container_Type": str             # Required. Value from lists {"Name": "Container_Type"}
     }
 }
 ```
@@ -225,10 +225,9 @@ Returns:
 
 Request body formats:
 * Purchased and prepared components currently have redundant schema but are defined separately in case of future divergence.
-* Purchased lots
+* Purchased lots:
 ```json
 request = {
-    "_id": str,                            # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,                    # Required. Links to chemicals._id of existing chemical.
     "Manufacturer_Lot_Batch_Number": str,  # Required.
     "Open_Date": str,                      # Optional. Timezone-aware ISO 8601 string.
@@ -239,11 +238,10 @@ request = {
 * Prepared lots:
 ```json
 request = {
-    "_id": str,               # Required. Convertible to ObjectId(). Primary key.
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
-    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Types"}
+    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Type"}
     "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
     "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
     "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
@@ -295,7 +293,7 @@ request = {
     "chemical_id": str,       # Required. Links to chemicals._id of existing chemical.
     "Amount": [int, float],   # Required. Either type is acceptable.
     "Units": str,             # Required. Value from lists {"Name": "Units"}
-    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Types"}
+    "Container_Type": str,    # Required. Value from lists {"Name": "Container_Type"}
     "Preparation_Date": str,  # Required. Timezone-aware ISO 8601 string.
     "Expiry_Date": str,       # Required. Timezone-aware ISO 8601 string.
     "Empty_Date": str,        # Optional. Timezone-aware ISO 8601 string.
