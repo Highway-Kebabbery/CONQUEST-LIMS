@@ -78,7 +78,7 @@ CONQUEST-LIMS/
 ├── tests/                        # Full integration test suite for each module and edge cases
 │
 ├── Dockerfile                    # Defines the app container image
-├── docker-compose.yml
+├── docker-compose.yml            # Kept for testing without k8s
 ├── requirements.txt
 │
 ├── run.py                        # Entry point for the app from Dockerfile
