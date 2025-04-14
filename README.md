@@ -1,6 +1,6 @@
 # <div align="center">CONQUEST-LIMS</div>
 ## Description
-CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust validation system and supports CRUD operations for chemical templates, lot records, and lists used to control validated-entry fields..
+CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust data-entry validation system and supports CRUD operations for chemical templates, lot records, and lists used to control validated-entry fields. CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes. Minikube is used as a local Kubernetes cluster to simulate real-world orchestration, allowing services to be deployed, scaled, and managed with full separation between the application and database containers.
 
 ## Features
 ### Current
@@ -12,28 +12,31 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
 * Offers an API with CRUD endpoints following RESTful design principles for all record types.
 * Includes a robust, full integration testing suite that validates all data flows across all schema using `pytest` and `mongomock`.
 * Containerized using Docker to ensure consistent deployment across all platforms.
+* Orchestrated using Kubernetes (locally using Minikube).
 
 ### Planned:
-* The app is currently undergoing orchestration using Minikube.
-* Following this, ElasticSearch will be implemented for fuzzy searches of chemical and lot names.
+* ElasticSearch implementation is currently underway for fuzzy searches of chemical and lot names.
 * For a detailed list of additional planned upgrades, please refer to [docs/specification.md](./docs/specification.md)
 
 ## How to Use
 (DRAFT, THIS IS A DRAFT)
-* Install and configure Windows Subsystem for Linux (WSL) (DRAFT, THIS WILL BE FLESHED OUT)
+* Install and configure Windows Subsystem for Linux (WSL).
+    * (DRAFT, THIS WILL BE FLESHED OUT)
 * Download the project and navigate to the root directory of the project.
 * Run the command `chmod +x setup.sh`.
 * Run the command `./setup.sh` to initialize the database and load example data.
-* Run the command `scripts/clean.md` when finished to clean up containers and database volumes.
+    * (Run the command `scripts/clean.md` when finished to clean up containers and database volumes.)
+* Copy the ip address provided at the end of `setup.sh`'s execution or run `minikube ip` to retrieve it again. This address (of the form `http://<minikube id>:30007/`) is used to make requests to the app.
+    * ***Be sure to replace*** `<minikube ip>` ***in the requets below with the ip address returned in your terminal.***
 * Send GET requests to each end point using:
-    * `curl http://localhost:5000/`
-    * `curl http://localhost:5000/chemicals`
-    * `curl http://localhost:5000/lots`
-    * `curl http://localhost:5000/lists`
+    * `curl http://<minikube ip>:30007/`
+    * `curl http://<minikube ip>:30007/chemicals`
+    * `curl http://<minikube ip>:30007/lots`
+    * `curl http://<minikube ip>:30007/lists`
 * Log an example chemical template (for fun!):
-    * Copy/paste this command into your terminal and execute it.
+    * Copy/paste this command, with the updated minikube ip address, into your terminal and execute it.
     ```bash
-    curl -s -X POST "http://localhost:5000/chemicals" \
+    curl -s -X POST "http://<minikube ip>:30007/chemicals" \
         -H "Content-Type: application/json" \
         -d '{
             "Name": "Methanol (Certified ACS), Fisher Chemical",
@@ -52,9 +55,9 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
     ```
     * It didn't work, did it? Did you check to make sure there wasn't already a chemical in the system for the template you were trying to log?
 * Try logging another chemical!:
-    * Copy/paste this command into your terminal and execute it.
+    * Copy/paste this command, with the updated minikube ip address, into your terminal and execute it.
     ```bash
-    curl -s -X POST "http://localhost:5000/chemicals" \
+    curl -s -X POST "http://<minikube ip>:30007/chemicals" \
         -H "Content-Type: application/json" \
         -d '{
             "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
@@ -71,11 +74,11 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
             }
         }'
     ```
-    * Ah, that didn't work, either, did it? Did you run `curl http://localhost:5000/lists` to see which fields are validated entry fields, or did you believe that you could trust me?
+    * Ah, that didn't work, either, did it? Did you run `curl http://<minikube ip>:30007/lists` to see which fields are validated entry fields, or did you believe that you could trust me?
 * Log a fun chemical (for real this time!):
-    * Copy/paste this command into your terminal and execute it.
+    * Copy/paste this command, with the updated minikube ip address, into your terminal and execute it.
     ```bash
-    curl -s -X POST "http://localhost:5000/chemicals" \
+    curl -s -X POST "http://<minikube ip>:30007/chemicals" \
         -H "Content-Type: application/json" \
         -d '{
             "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
@@ -94,12 +97,12 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
     ```
 * Oops, it looks like trifluoromethanesulfonic acid isn't quite as fun as it sounds. We need to update its description in the database.
     * (DRAFTING DOCUMENT. THIS IS A GOOD PLACE TO ENCOURAGE USE OF THE ELASTIC SEARCH FUNCTIONALITY TO FIND THIS CHEMICAL BY NAME TO GET THE PRIMARY KEY FOR A PUT REQUEST. FOR NOW THEY CAN JUST SEND A GET REQUEST OR LOOK AT THE RETURNED "inserted_id" FIELD FROM TEN SECONDS AGO.)
-    * Please paste this completely valid command into your terminal, update it with trifluoromethanesulfonic acid's "_id," and then execute your request.
+    * Please paste this completely valid command into your terminal, update it with minikube's ip address, update it with trifluoromethanesulfonic acid's "_id" in **BOTH** the address *and* the request body (ensure it's enclosed in quotes in the request body), and then execute your request.
     ```bash
-    curl -s -X PUT "http://localhost:5000/chemicals/<chemical_id>" \
+    curl -s -X PUT "http://<minikube ip>:30007/chemicals/<chemical_id>" \
         -H "Content-Type: application/json" \
         -d '{
-            "_id": <chemical_id>,
+            "_id": "<chemical_id>",
             "Name": "Trifluoromethanesulfonic acid, 99%, extra pure",
             "CAS_Number": "1493-13-6",
             "Classification": "Super acid",
@@ -114,7 +117,21 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
             }
         }'
     ```
-* Try running the integration testing suite using `docker exec -it conquest-lims-api pytest`.
+* Try running the pytest integration testing suite while the app is deployed:
+    * Get the name of the `conquest-lims-api-xxxxxx` pod:
+      ```bash
+      kubectl get pods
+      ```
+    * Exec into the pod (replace the pods name with the actual pod name):
+
+      ```bash
+      kubectl exec -it <conquest-lims-api-xxxxx> -- /bin/bash
+      ```
+    * Run pytest:
+      ```bash
+      pytest
+      ```
+
 
 ### Software Requirements
 (Fill this out once app is containerized. Probably won't change after implementing ElasticSearch.)
@@ -173,8 +190,8 @@ CONQUEST-LIMS/
 
 ### Operation
 #### API Base URL
-```python
-http://localhost:5000/
+```bash
+http://<minikube ip>:30007/
 ```
 
 #### API Overview
@@ -196,17 +213,38 @@ Detailed request/response schemas are documented in the [API reference.](./docs/
 * All required fields must be present and non-empty.
 * Data types are strictly enforced per schema.
 * List-based fields must reference existing list values (e.g., approved manufacturers).
-* Dates must arrive as timezone-aware ISO 8601 formatted strings.
+* Dates must arrive as timezone-aware ISO 8601 formatted strings (UTC offset must be of the form "-00:00").
+* Dates are stored and returned in the UTC timezone.
 * Prepared lots must include at least one valid component.
 * Lists must contain at least one entry.
 * For a detailed look at the validation strategy, click [here](./docs/specification.md/#validation-strategy)
 
 ### Testing
-Run all tests with
+Run all tests with:
+* Local, uncontainerized development envinroment:
 ```bash
 pytest
 ```
-(Include a portion in set-up about getting pytest to run in the root directory.)
+* Inside Docker containers orchestrated using `docker compose`:
+```bash
+docker exec -it conquest-lims-api pytest
+```
+* When deployed locally using Minikube (as it is presented when downloaded):
+    * Get the name of the `conquest-lims-api-xxxxxx` pod:
+      ```bash
+      kubectl get pods
+      ```
+    * Exec into the pod (replace the pods name with the actual pod name):
+
+      ```bash
+      kubectl exec -it <conquest-lims-api-xxxxx> -- /bin/bash
+      ```
+    * Run pytest:
+      ```bash
+      pytest
+      ```
+
+*********************(Include a portion in set-up about getting pytest to run in the root directory.)
 
 
 ## Technology

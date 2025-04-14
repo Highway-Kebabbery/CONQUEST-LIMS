@@ -1,8 +1,10 @@
 #!/bin/bash
+minikube_ip="$1"
+
 set -e
 
 # Base URL
-API_URL="http://localhost:5000"
+API_URL="http://$minikube_ip:30007"
 
 # Helped Functions
 # Note that these functions assume MongoDB's "_id" is the primary key
@@ -30,6 +32,8 @@ post_lot() {
         -d "$lot_json")
     echo "$response" | jq -r '.inserted_id'
 }
+
+########## Minimal object set needed to show entire lot logging functionality ##########
 
 # Objects to be loaded
 classification_list='{
@@ -254,6 +258,12 @@ purch_lot_4='{
             "Empty_Date": null
         }'
 
+# Log purchased lots because prepared lots depend on their existence
+purch_lot_1_id=$(post_lot "$purch_lot_1")
+purch_lot_2_id=$(post_lot "$purch_lot_2")
+purch_lot_3_id=$(post_lot "$purch_lot_3")
+purch_lot_4_id=$(post_lot "$purch_lot_4")
+
 prep_lot_2='{
             "chemical_id": "'"$prep_chem_2_id"'",
             "Amount": 4,
@@ -298,13 +308,8 @@ prep_lot_3='{
             ]
         }'
 
-# Log lots because prep_lot_1 depends on the existence of prep_lot_3 as a 
-# component. Lot ids are save depsite only using one right now in the event 
-# that I come back later to load more complex data and need them.
-purch_lot_1_id=$(post_lot "$purch_lot_1")
-purch_lot_2_id=$(post_lot "$purch_lot_2")
-purch_lot_3_id=$(post_lot "$purch_lot_3")
-purch_lot_4_id=$(post_lot "$purch_lot_4")
+# Log prepared lots 2 and 3 because prep_lot_1 depends on the existence of 
+# prep_lot_3 as a component.
 prep_lot_2_id=$(post_lot "$prep_lot_2")
 prep_lot_3_id=$(post_lot "$prep_lot_3")
 
@@ -333,5 +338,13 @@ prep_lot_1='{
         }'
 
 prep_lot_1_id=$(post_chemical "$prep_lot_1")
+
+########## End of minimal object set needed to show entire lot logging functionality ##########
+
+########## Additional object set needed to show ElasticSearch functionality ##########
+
+# To be implemented.
+
+########## Additional object set needed to show ElasticSearch functionality ##########
 
 echo "Database successfully loaded with lists, lots, and chemicals."

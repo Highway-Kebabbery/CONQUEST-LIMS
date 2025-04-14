@@ -15,8 +15,9 @@ spec:
       containers:
       - name: conquest-lims-api
         image: conquest-lims-api:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 5000
-      env:
-        - name: MONGO_URI
-          value: mongodb://mongo:27017/conquest_lims
+        env:
+          - name: MONGO_URI
+            value: mongodb://mongo:27017/conquest-lims-db

@@ -1,9 +1,9 @@
 #!/bin/bash
+minikube_ip="$1"
+
 set -e
 
-echo "Running API smoke tests..."
-
-BASE_URL="http://localhost:5000"
+BASE_URL="http://$minikube_ip:30007"
 HEADERS=(-H "Content-Type: application/json")
 
 # ----- Lists -----
@@ -134,9 +134,6 @@ lot_id=$(
 echo "POST /lots failed."
 exit 1
 }
-
-echo "temp_chem_id: $temp_chem_id"
-echo "lot_id: $lot_id"
 
 curl -sf "${BASE_URL}/lots" > /dev/null || {
   echo "GET /lots failed."
