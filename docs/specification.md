@@ -21,7 +21,7 @@ Chemical data are duplicated onto lot records in an attempt to work with the doc
 
 All records are stored in MongoDB and served via a Flask-based API. Validation is enforced at the schema level through dedicated classes to ensure data harmonization and integrity.
 
-CONQUEST LIMS is currently successfully containerized using Docker to allow for deployment almost anywhere. Local orchestration via Minikube is under development.
+CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes (locally via Minikube) to allow the system to be deployed, scaled, and managed with full separation between the application and database containers.
 
 ## Important Usage Information
 * Initial configuration:
@@ -29,7 +29,9 @@ CONQUEST LIMS is currently successfully containerized using Docker to allow for 
     *Purchased chemicals/lots should be created first, followed by prepared chemicals/lots that use only purchased lots as components.
 * lots.chemical_id links to chemicals._id.
 * lots.Components.lot_id links to lots._id.
-* Optional fields are required to be sent with an empty value of either `None` type or of the type specified in the schema. The key cannot be missing.
+* Optional fields are required to be sent with either `null` or an empty value of the type specified in the schema. The key cannot be missing.
+* Datetimes must be sent to the system in local time with timezone offsets (UTC timezones must be received in the form "-00:00;" "Z" will not work).
+* Datetimes are returned in the UTC timezone.
 * Do not attempt a PUT request to update a chemical template with the template of another chemical whose lots would need to use the first chemical, the replaced one, as a component. This cannot be enforced until and unless the system is changed to operate in a more rigorous fashion where chemical templates also prescribe prepared lot components and amounts (see ["Future Upgrades"](#future-upgrades)).
 
 ## Architecture
@@ -39,6 +41,7 @@ CONQUEST LIMS is currently successfully containerized using Docker to allow for 
 * Database: MongoDB (accessed via pymongo)
 * Testing: pytest, mongomock
 * Containerization: Docker
+* Orchestration: Kubernetes (simulated locally using Minikube)
 
 ## Project Structure
 ```bash
@@ -237,7 +240,7 @@ record = {
 }
 ```
 
-## Validation Strategy
+## Data Validation Strategy
 
 Each database schema (Chemical, Lot, List) has a corresponding class (ChemicalSchema, LotSchema, ListsSchema) which verifies, as necessary and in some cases in addition to the end points, that:
 
@@ -274,6 +277,7 @@ All validation methods return structured tuples which are later passed to the Va
 
 ## Testing
 
+### Integration testing (Flask-MongoDB)
 Full integration tests are implemented using pytest. Tests are located under the /tests/ directory and grouped by schema.
 
 Fixtures include:
@@ -282,7 +286,7 @@ Fixtures include:
 
 The following items are tested for each schema module:
 
-### Chemical Aggregate Fields (Total_Available_Lots and Total_Open_Lots):
+#### Chemical Aggregate Fields (Total_Available_Lots and Total_Open_Lots):
 * Chemical aggregate fields are initialized to int(0) upon chemical template creation.
 * Chemical aggregate fields will change as a result of lots being open, emptied, or their expiry date passing.
 * Chemical aggregate fields are recalculated when a PUT or GET request is submitted for a chemical(s).
@@ -296,24 +300,24 @@ fact that chemical aggregate fields are updated when a GET request is received f
 * Lists receive standard testing for HTTP codes 200, 201, and 204 in addition to 404 and 400 (missing request body).
 * Lists receive HTTP code 422 testing for: Attempt to create a duplicate list, missing required field, missing required value, and incorrect type for field.
 
-### Chemicals:
-#### HTTP code 200:
+#### Chemicals:
+##### HTTP code 200:
 * Chemical objects of all valid configurations are successfully modified in or retrieved from the database.
 
-#### HTTP code 201
+##### HTTP code 201
 * Chemical objects of all valid configurations are successfully inserted in the database.
 
-#### HTTP code 204
+##### HTTP code 204
 * Chemical objects of all valid configurations are successfully deleted from the database.
 
-#### HTTP code 400
+##### HTTP code 400
 * Missing request bodies return error code 400.
 * GET requests with malformed primary keys return error code 400
 
-#### HTTP code 404
+##### HTTP code 404
 * Chemicals not found in the database return error code 404.
 
-#### HTTP code 422:
+##### HTTP code 422:
 All fields in the chemical request body, the primary key (if applicable), and the nature of the request itself are tested individually to verify that the system properly validates all applicable error codes:
 
 * No required keys are missing from chemical requests.
@@ -329,25 +333,25 @@ All fields in the chemical request body, the primary key (if applicable), and th
 * PUT: All configurations of valid chemicals are checked for successful update against each configuration of a valid chemical.
 * PUT: All invalid chemical configurations are tested for failure to update against all valid chemical configurations.
 
-### Lots:
-#### HTTP code 200:
+#### Lots:
+##### HTTP code 200:
 * Verify that lot objects of all valid configurations are successfully modified in or retrieved from the database.
 
-#### HTTP code 201
+##### HTTP code 201
 * Verify that lot objects of all valid configurations are successfully inserted in the database.
 
-#### HTTP code 204
+##### HTTP code 204
 * Lot objects of all valid configurations are successfully deleted from the database.
 
-#### HTTP code 400
+##### HTTP code 400
 * Missing request bodies return error code 400.
 * GET requests with malformed primary keys return error code 400.
 
-#### HTTP code 404
+##### HTTP code 404
 * Lots not found in the database return error code 404.
 * Lots with parent chemical templates not found in the database return error code 404.
 
-#### HTTP code 422:
+##### HTTP code 422:
 All fields in the lot request body, the primary key (if applicable), and the nature of the request itself are tested individually to verify that the system properly validates all applicable error codes:
 
 * No required keys are missing from lot requests.
@@ -367,6 +371,9 @@ All fields in the lot request body, the primary key (if applicable), and the nat
 * PUT: Verify that the lot request does not contain a malformed primary key.
 
 All schema modules are tested to ensure that multiple errors will short-circuit and return the first error.
+
+## End-to-End Testing
+The system runs smoke tests through the terminal on start-up to ensure all end points are available and that a successful connection to the database has been established.
 
 ## Future Upgrades
 * Separate field notes from request schema in app/docs/api_reference.md for easier copying and pasting.

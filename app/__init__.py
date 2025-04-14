@@ -13,6 +13,7 @@ from pymongo.collection import Collection
 from app.api.lists import lists
 from app.api.chemicals import chemicals
 from app.api.lots import lots
+import os
 
 def create_app():
     """
@@ -33,9 +34,10 @@ def create_app():
 
     # Only initialize MongoDB client if it hasn't been injected (e.g., during testing)
     if not hasattr(app, "mongo_client"):
-        app.mongo_client = MongoClient("conquest-lims-db", 27017)    # Use this client for production
-        # app.mongo_client = MongoClient("localhost", 27017)  # Use this client for testing directly in WSL with MongoDB
-        app.db = app.mongo_client.conquest_lims
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/conquest-lims-db")
+        
+        app.mongo_client = MongoClient(mongo_uri)
+        app.db = app.mongo_client.get_default_database()
         app.chemicals = app.db.chemicals
         app.lots = app.db.lots
         app.lists = app.db.lists
