@@ -24,7 +24,7 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
     * (DRAFT, THIS WILL BE FLESHED OUT)
 * Download the project and navigate to the root directory of the project.
 * Run the command `chmod +x setup.sh`.
-* Run the command `./setup.sh` to initialize the database and load example data.
+* Run the command `./setup.sh` to initialize the database.
     * (Run the command `scripts/clean.md` when finished to clean up containers and database volumes.)
 * Copy the ip address provided at the end of `setup.sh`'s execution or run `minikube ip` to retrieve it again. This address (of the form `http://<minikube id>:30007/`) is used to make requests to the app.
     * ***Be sure to replace*** `<minikube ip>` ***in the requets below with the ip address returned in your terminal.***
