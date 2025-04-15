@@ -10,6 +10,13 @@ curiosity: benefits of JSON vs YAML?
 
 
 
+Refactor to set collection names using constants in app/__init__.py
+Use those collection names when indexing the collections field in ES docs
+
+
+
+
+
 Will need to load some more data: Duplicate lots in various quantities to show off ability to pull aggregate data and find the most popular classifications/chemicals
 ES endpoints:
 * Fuzzy search for chemicals by name

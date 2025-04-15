@@ -92,7 +92,11 @@ def add_chemical() -> Tuple[Response, int]:
 
             # Index chemical name in Elasticsearch
             es_doc = {
-                "name": record.get("name", ""),
+                ChemicalSchema.NAME_KEY: record.get(
+                    ChemicalSchema.NAME_KEY,
+                    ""
+                ),
+                ################REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE rename these as references to the database names
                 "type": "chemical",
                 "mongo_id": str(result.inserted_id)
             }
