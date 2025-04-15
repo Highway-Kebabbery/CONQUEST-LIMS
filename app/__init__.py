@@ -8,12 +8,11 @@ attributes.
 """
 from flask import Flask
 from pymongo import MongoClient
-from pymongo.database import Database
-from pymongo.collection import Collection
+from pymongo.errors import ConnectionFailure
 from app.api.lists import lists
 from app.api.chemicals import chemicals
 from app.api.lots import lots
-import os
+import os, time
 
 def create_app():
     """
@@ -36,8 +35,19 @@ def create_app():
     if not hasattr(app, "mongo_client"):
         mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/conquest-lims-db")
         
-        app.mongo_client = MongoClient(mongo_uri)
-        app.db = app.mongo_client.get_default_database()
+        for i in range(15):
+            try:
+                app.mongo_client = MongoClient(mongo_uri)
+                app.db = app.mongo_client.get_default_database()
+                print("Connected to MongoDB")
+                break
+            except ConnectionFailure:
+                print(f"Failed to connect to MongoDB ({i + 1}/15)")
+                time.sleep(3)
+        
+        else:
+            raise ConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
+
         app.chemicals = app.db.chemicals
         app.lots = app.db.lots
         app.lists = app.db.lists
