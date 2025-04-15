@@ -1,12 +1,9 @@
 #!/bin/bash
-minikube_ip="$1"
+API_URL="$1"
 
 set -e
 
-# Base URL
-API_URL="http://$minikube_ip:30007"
-
-# Helped Functions
+# Helper Functions
 # Note that these functions assume MongoDB's "_id" is the primary key
 post_list() {
     local list_json="$1"

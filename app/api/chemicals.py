@@ -82,11 +82,25 @@ def add_chemical() -> Tuple[Response, int]:
         form_val = new_chemical.validate_chemical_form(request.method)
 
         if form_val[1] == 0:
+            # Build chemical record and insert into database
             record = new_chemical.build_chem_record(request.method)
             result = new_chemical.insert_update_chem_record(
                 current_app.chemicals,
                 record,
                 request.method
+            )
+
+            # Index chemical name in Elasticsearch
+            es_doc = {
+                "name": record.get("name", ""),
+                "type": "chemical",
+                "mongo_id": str(result.inserted_id)
+            }
+
+            current_app.es.index(
+                index="chemicals",
+                id=str(result.inserted_id),
+                document=es_doc
             )
 
             response = jsonify({"inserted_id": str(result.inserted_id)}), 201
@@ -174,6 +188,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
 
         if form_val[1] == 0:
             try:
+                # Build updated chemical record and update in database
                 record = updated_chemical.build_chem_record(
                     request.method,
                     chemical_id
@@ -186,7 +201,19 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
                     chemical_id
                 )
                 
-                response = jsonify({"modified_count": str(result.modified_count)}), 200
+                # Update corresponding document in Elasticsearch
+                try:
+                    updated_es_doc = {
+                        "name": record.get("name", ""),
+                        "type": "chemical",
+                        "mongo_id": chemical_id
+                    }
+                    current_app.es.index(index="chemicals", id=chemical_id, document=updated_es_doc)
+
+                    response = jsonify({"modified_count": str(result.modified_count)}), 200
+
+                except Exception as e:
+                    response = jsonify({"error": f"Could not update document in Elasticsearch {e}"}), 500
 
             except InvalidId:
                 # This is a failsafe. validate_chemical_forms() handles this case.
@@ -213,6 +240,7 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
         or error response with status 400 or 404.
     """
     try:
+        # Delete chemical record from the database
         result = current_app.chemicals.delete_one(
             {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
         )
@@ -220,9 +248,60 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
         if result.deleted_count == 0:
             response = jsonify({"error": "Not found"}), 404
         else:
-            response = jsonify({"deleted_count": result.deleted_count}), 204
+            try:
+                current_app.es.delete(index="chemicals", id=chemical_id)
+                response = jsonify({"deleted_count": result.deleted_count}), 204
+            except Exception as e:
+                response = jsonify({"error": f"Failed to delete document in Elasticsearch {e}"}), 500
 
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400   
+    
+    return response
+
+@chemicals.route("/search", methods=["GET"])
+def search_chemicals() -> Tuple[Response, int]:
+    """
+    Full-text search for chemicals by name.
+    
+    Parameters:
+        query (str): Search keywords
+    
+    Returns:
+        JSON list of matching chemical records with partial or full name matches
+    """
+    query = request.args.get("query")
+    if not query:
+        response = jsonify({"error": "Missing query"}), 400
+    
+    try:
+        es_query = {
+            "query": {
+                "match": {
+                    "name": {
+                        "query": query,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            }
+        }
+
+        results = current_app.es.search(index="chemicals", body=es_query)
+        hits = results.get("hits", {}).get("hits", [])
+
+        response_data = [
+            {
+                "_id": hit["_id"],
+                "mongo_id": hit["_source"].get("mongo_id", ""),
+                "name": hit["_source"].get("name", ""),
+                "score": hit["_score"]
+            }
+            for hit in hits
+        ]
+
+        response = jsonify(response_data), 200
+
+    except Exception as e:
+        response = jsonify({"error": f"Elasticsearch unavailable{e}"})
     
     return response

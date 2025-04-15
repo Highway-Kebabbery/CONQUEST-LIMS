@@ -37,8 +37,10 @@ check_and_prompt_install jq
 
 
 # Spin up containers locally using docker compose for dev not requiring Minikube
-: '
+#: '
 # Spin up Docker containers
+API_URL=$"http://localhost:5000"
+
 check_and_prompt_install docker compose
 
 echo "Spinning up Docker containers..."
@@ -46,9 +48,20 @@ echo "Existing volumes will be deleted for this project."
 docker compose down -v
 docker compose up --build -d
 
-echo "Waiting for services to stabilize..."
-sleep 5
-'
+echo "Waiting for API to be responsive..."
+for i in {1..15}; do
+  if (
+    curl -s "$API_URL/lists" > /dev/null &&
+    curl -s "$API_URL/lots" > /dev/null &&
+    curl -s "$API_URL/chemicals" > /dev/null
+  ); then
+    break
+  else
+    echo "Waiting for API... ($i/15)"
+    sleep 10
+  fi
+done
+#'
 
 # Check for and start Minikube
 ## Only use when testing orchestration. Too much overhead for app dev.
@@ -64,7 +77,7 @@ sleep 5
 ##  * Test/get Minikube ip address
 ##  * Confirm service is up
 
-#: '
+: '
 check_and_prompt_install minikube \
 "curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb && \
 sudo dpkg -i minikube_latest_amd64.deb && \
@@ -77,38 +90,51 @@ kubectl apply -f k8s/
 
 minikube_ip=$(minikube ip)
 
-echo "Waiting for conquest-lims-api to become available..."
+API_URL="http://$minikube_ip:30007"
 
-for i in {1..10}; do
-  if (
-    curl -s --max-time 3 "http://$minikube_ip:30007/" > /dev/null &&
-    curl -s --max-time 3 "http://$minikube_ip:30007/lists" > /dev/null &&
-    curl -s --max-time 3 "http://$minikube_ip:30007/chemicals" > /dev/null &&
-    curl -s --max-time 3 "http://$minikube_ip:30007/lots" > /dev/null); then
+echo -e "Waiting for conquest-lims-api to become available...\n\n"
+echo -e "Full disclosure:\n \
+Each readiness check takes 30 seconds. Expect a ~3.5-minute initialization.\n \
+I do not know why the app takes so long to initialize when run in k8s. The \n \
+initialization time increased by about 2.5 minutes after implementing \n \
+Elasticsearch. I would love to optimize performance, but I am FAR beyond \n \
+being out of time to do that.\n\n \
+Strictly with respect to the skills THIS project required: I knew Python \n \
+and how a RDBMS should work going into this build; one relevant skill \n \
+and one tangentially-related skill. Everything else this build required \n \
+was new to me and I am severely burned out.\n\n" \
+
+for i in {1..20}; do
+  if {
+    curl -s --max-time 3 "$API_URL/" > /dev/null &&
+    curl -s --max-time 3 "$API_URL/lists" > /dev/null &&
+    curl -s --max-time 3 "$API_URL/chemicals" > /dev/null &&
+    curl -s --max-time 3 "$API_URL/lots" > /dev/null;
+  }; then
     echo "Cluster is ready."
     break
   else
-    echo "Waiting... ($i/10)"
-    sleep 3
+    echo "Waiting... ($i/20)"
+    sleep 30
   fi
 done
 
-if ! curl -s "http://$minikube_ip:30007/" > /dev/null; then
+if ! curl -s "$API_URL/" > /dev/null; then
   echo "Cluster did not become available in time."
   exit 1
 fi
-#'
+'
 
 # Make scripts executable
 chmod +x scripts/*.sh
 
 # Load required and demonstration objects
 echo "Loading initial database content..."
-bash scripts/load_data.sh "$minikube_ip"
+bash scripts/load_data.sh "$API_URL"
 
 # Run smoke tests
 echo "Running API smoke tests..."
-bash scripts/smoke_test.sh "$minikube_ip"
+bash scripts/smoke_test.sh "$API_URL"
 
 # Donezo
-echo "Setup complete. Visit or send requests to: http://$minikube_ip:30007/"
+echo "Setup complete. Visit or send requests to: $API_URL/"

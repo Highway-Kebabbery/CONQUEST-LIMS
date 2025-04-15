@@ -8,7 +8,8 @@ attributes.
 """
 from flask import Flask
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure as DBConnectionFailure
+from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError
 from app.api.lists import lists
 from app.api.chemicals import chemicals
 from app.api.lots import lots
@@ -41,17 +42,39 @@ def create_app():
                 app.db = app.mongo_client.get_default_database()
                 print("Connected to MongoDB")
                 break
-            except ConnectionFailure:
+            except DBConnectionFailure:
                 print(f"Failed to connect to MongoDB ({i + 1}/15)")
                 time.sleep(3)
         
         else:
-            raise ConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
+            raise DBConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
 
         app.chemicals = app.db.chemicals
         app.lots = app.db.lots
         app.lists = app.db.lists
     
+    if not hasattr(app, "es"):
+        es_uri = os.getenv("ELASTIC_URI", "http://localhost:9200")
+
+        for i in range(10):
+            try:
+                # Wouldn't hardcode passwords in production environment.
+                app.es = Elasticsearch(es_uri, basic_auth=("elastic", "changeme"), verify_certs=False)
+
+
+                # Check if ES is responding to ping
+                if app.es.ping():
+                    print("Connected to Elasticsearch")
+                    break
+                else:
+                    raise ESConnectionError("Ping to Elasticsearch failed")
+
+            except ESConnectionError as e:
+                print(f"Failed to connect to Elasticsearch ({i + 1}/10): {e}")
+                time.sleep(3)
+        else:
+            raise ESConnectionError("Failed to connect to Elasticsearch after multiple attempts.")
+        
     @app.route("/")
     def index():
         return "Prepare to VANQUISH your competition.\n"
