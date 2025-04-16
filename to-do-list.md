@@ -8,6 +8,11 @@ Need to figure out how to automatically swtich based on ENV variable (production
 
 curiosity: benefits of JSON vs YAML?
 
+
+Upon return: Mimic ES logic from chemicals in lots.
+
+
+
 Add to docs: future upgrades:
 THESE GO ON THE README ITSELF TO SHOW I THINK ABOUT SYSTEM DESIGN
 Add ability to search specific list of lots to future upgrades (not one lot, not all lots, but a specific subset, such as all lots returned by an ES query)
@@ -22,13 +27,11 @@ ES stores lot names, Mongo_ids, prepared/opened dates, expiry dates, and empty d
 It does this to keep documents and maintenance as lightweight as possible.
 Search chemicals or lots by name, find the one you need with it's id, then
 query it in mongodb for all information
+* Move ES record construction into class methods like document construction
 
 
 Will need to load some more data: Duplicate lots in various quantities to show off ability to pull aggregate data and find the most popular classifications/chemicals
 ES endpoints:
-* Fuzzy search for chemicals by name
-* Fuzzy search for lots by name
-*
 * Return aggregate values based on fuzzy search for chemical name?
 * Return aggregate values based on fuzzy search for lot name?
 *

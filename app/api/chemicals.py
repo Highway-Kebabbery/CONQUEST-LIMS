@@ -95,11 +95,11 @@ def add_chemical() -> Tuple[Response, int]:
 
             # Index chemical name in Elasticsearch
             es_doc = {
+                ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
                 ChemicalSchema.NAME_KEY: record.get(
                     ChemicalSchema.NAME_KEY,
                     ""
                 ),
-                ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
                 ES_MONGO_ID_KEY: str(result.inserted_id)
             }
             try:
@@ -220,13 +220,15 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
                     chemical_id
                 )
                 
+                response = jsonify({"modified_count": str(result.modified_count)}), 200
+
                 # Update corresponding document in Elasticsearch
                 updated_es_doc = {
+                    ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
                     ChemicalSchema.NAME_KEY: record.get(
                         ChemicalSchema.NAME_KEY,
                         ""
                     ),
-                    ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
                     ES_MONGO_ID_KEY: chemical_id
                 }
                 try:
@@ -309,7 +311,7 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
     
     return response
 
-@chemicals.route("/search", methods=["GET"])
+@chemicals.route("/search",methods=["GET"])
 def search_chemicals() -> Tuple[Response, int]:
     """
     Full-text search for chemicals by name.
@@ -318,7 +320,7 @@ def search_chemicals() -> Tuple[Response, int]:
         query (str): Search keywords
     
     Returns:
-        JSON list of matching chemical records with partial or full name matches
+        JSON list of matching chemical records with partial or full name matches.
     """
     query = request.args.get("query")
     if not query:
@@ -345,12 +347,16 @@ def search_chemicals() -> Tuple[Response, int]:
         response_data = [
             {
                 "_id": hit["_id"],
-                ES_MONGO_ID_KEY: hit["_source"].get(
-                    ES_MONGO_ID_KEY,
+                ES_MONGO_COLL_KEY: hit["_source"].get(
+                    ES_MONGO_COLL_KEY,
                     ""
                 ),
                 ChemicalSchema.NAME_KEY: hit["_source"].get(
                     ChemicalSchema.NAME_KEY,
+                    ""
+                ),
+                ES_MONGO_ID_KEY: hit["_source"].get(
+                    ES_MONGO_ID_KEY,
                     ""
                 ),
                 "score": hit["_score"]
@@ -361,6 +367,6 @@ def search_chemicals() -> Tuple[Response, int]:
         response = jsonify(response_data), 200
 
     except Exception as e:
-        response = jsonify({"error": f"Elasticsearch unavailable{e}"})
+        response = jsonify({"error": f"Elasticsearch unavailable: {e}"})
     
     return response
