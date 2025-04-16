@@ -61,6 +61,11 @@ for i in {1..15}; do
     sleep 10
   fi
 done
+
+if ! curl -s "$API_URL/" > /dev/null; then
+  echo "API did not become available in time."
+  exit 1
+fi
 #'
 
 # Check for and start Minikube

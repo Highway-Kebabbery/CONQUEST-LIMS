@@ -8,13 +8,20 @@ Need to figure out how to automatically swtich based on ENV variable (production
 
 curiosity: benefits of JSON vs YAML?
 
+Add to docs: future upgrades:
+THESE GO ON THE README ITSELF TO SHOW I THINK ABOUT SYSTEM DESIGN
+Add ability to search specific list of lots to future upgrades (not one lot, not all lots, but a specific subset, such as all lots returned by an ES query)
+Implement internal lot numbers for lots to have more human-readable identifiers for lots
+ES could then be used as follows:
+* User needs to find available bottles of a chemical
+* search returns result cards with indexed information: just enough to identify ltos (name, human-readable internal lot number, prepared/opened date, expiry date, empty date). When they click the result they want, MongoDB is then queried to return the rest of the information on the page that loads.
 
-
-Refactor to set collection names using constants in app/__init__.py
-Use those collection names when indexing the collections field in ES docs
-
-
-
+Notes for documentation:
+ES only stores chemical names and ids
+ES stores lot names, Mongo_ids, prepared/opened dates, expiry dates, and empty dates.
+It does this to keep documents and maintenance as lightweight as possible.
+Search chemicals or lots by name, find the one you need with it's id, then
+query it in mongodb for all information
 
 
 Will need to load some more data: Duplicate lots in various quantities to show off ability to pull aggregate data and find the most popular classifications/chemicals

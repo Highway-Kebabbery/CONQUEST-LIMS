@@ -13,6 +13,7 @@ from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError
 from app.api.lists import lists
 from app.api.chemicals import chemicals
 from app.api.lots import lots
+from app.constants import LISTS_COLLECTION, CHEMICALS_COLLECTION, LOTS_COLLECTION
 import os, time
 
 def create_app():
@@ -49,9 +50,9 @@ def create_app():
         else:
             raise DBConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
 
-        app.chemicals = app.db.chemicals
-        app.lots = app.db.lots
-        app.lists = app.db.lists
+        app.chemicals = app.db[CHEMICALS_COLLECTION]
+        app.lots = app.db[LOTS_COLLECTION]
+        app.lists = app.db[LISTS_COLLECTION]
     
     if not hasattr(app, "es"):
         es_uri = os.getenv("ELASTIC_URI", "http://localhost:9200")
