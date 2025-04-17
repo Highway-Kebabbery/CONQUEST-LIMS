@@ -30,7 +30,7 @@ For a detailed look at the design philosophy, please refer to the [specification
 ## How to Use
 * This application is developed and tested in a Linux environment.
     * If you're using Windows, it's recommended to set up [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to ensure compatibility.
-* Download the project and navigate to the root directory of the project.
+* Clone the repository and navigate to the root directory of the project.
 * Run the command `chmod +x setup.sh`.
 * Run the command `./setup.sh` to initialise the database.
     * When finished, run the command `scripts/clean.sh` to clean up containers and database volumes.
