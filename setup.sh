@@ -32,7 +32,12 @@ check_and_prompt_install() {
 
 echo "Checking for required tools..."
 
-check_and_prompt_install docker
+check_and_prompt_install docker \
+"curl -fsSL https://get.docker.com -o get-docker.sh && \
+sh get-docker.sh && \
+rm get-docker.sh && \
+sudo usermod -aG docker \$USER && \
+newgrp docker"
 check_and_prompt_install jq
 
 
