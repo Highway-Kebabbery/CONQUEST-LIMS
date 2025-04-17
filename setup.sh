@@ -37,7 +37,7 @@ check_and_prompt_install docker \
 sh get-docker.sh && \
 rm get-docker.sh && \
 sudo usermod -aG docker \$USER && \
-echo 'Docker installed. Restart your terminal and then rerun ./setup.sh. \
+echo 'Docker installed. Restart your terminal and then rerun ./setup.sh.\n \
 NOTE: '\''exec \$SHELL'\'' is not guaranteed to work for this operation on WSL.' && \
 exit 0"
 
@@ -97,7 +97,7 @@ sudo dpkg -i minikube_latest_amd64.deb && \
 rm minikube_latest_amd64.deb"
 
 check_and_prompt_install kubectl \
-"curl -LO https://dl.k8s.io/release/\$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
+"curl -LO https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \
 rm kubectl"
 
