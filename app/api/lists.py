@@ -99,7 +99,7 @@ def get_list(list_name) -> Tuple[Response, int]:
 def update_list(list_name) -> Tuple[Response, int]:
     """
     Update an existing list by primary key ("Name"). Requests are validated against
-    database schema prior to insertion.
+    database schema prior to modification.
 
     Parameters:
         list_name (str): Name of the list to update. Must match the name in the 
