@@ -85,7 +85,7 @@ request = {
 # Storage_Condition: Required. Value from lists {"Name": "Storage_Conditions"}
 # Source: Required. Value from lists {"Name": "Sources"}
 # Purchased_Fields: Required.
-# Manufacturer: Required. Value from lists {"Name": "Manufacturers"}
+# Manufacturer: Required. Value from lists {"Name": "Manufacturer"}
 # Manufacturer_Part_Number: Required.
 # Amount: Required. Either type is acceptable.
 # Units: Required. Value from lists {"Name": "Units"}
@@ -162,7 +162,7 @@ response = {
 
 ### `PUT /chemicals/<chemical_id>`
 Description:\
-Updates a chemical template by primary key. Requests are validated against database schema prior to insertion.
+Updates a chemical template by primary key. Requests are validated against database schema prior to modification.
 
 Returns:\
 Tuple[Response, int]: JSON response with modified count and status 200 on success or error response with status 400, 404, or 422.
@@ -253,13 +253,13 @@ response =[
         "Mongo_Collection": str,
         "Name": str,
         "Mongo_id": str,
-        "id": str,
+        "_id": str,
         "score": float
     }
 ]
 
 # Mongo_Collection: The name of the MongoDB collection the document originates from.
-# Name: The name of the chemical template the lot is logged under.
+# Name: The name of the chemical template.
 # Mongo_id: The primary key of the corresponding database record.
 # _id: Elasticsearch auto-generated primary key
 # score: The result's relevance score
@@ -292,7 +292,7 @@ response = [
             "Amount": [int, float],
             "Units": str,
             "Container_Type": str
-        }
+        },
         "Open_Date": str,
         "Expiry_Date": str,
         "Empty_Date": str
@@ -320,7 +320,7 @@ response = [
         "Expiry_Date": str,
         "Empty_Date": str,
         "Components": [
-            # Purchased chemical/lot component
+            # Purchased chemical/lot components
             {
                 "lot_id": str,
                 "Name": str,
@@ -331,7 +331,7 @@ response = [
                 "Units": str,
                 "Expiry_Date": str
             },
-            # Prepared chemical/lot component
+            # Prepared chemical/lot components
             {
                 "lot_id": str,
                 "Name": str,
@@ -381,7 +381,7 @@ request = {
     "Expiry_Date": str,
     "Empty_Date": str,
     "Components": [
-        # Purchased chemical/lot component
+        # Purchased chemical/lot components
         {
             "lot_id": str,
             "Amount": [int, float],
@@ -406,7 +406,7 @@ request = {
 
 # Components: Required. Requires >= 1 components.
 
-# Purchased chemical/lot component
+# Purchased chemical/lot components
 # lot_id: Required. Primary key of an existing lot.
 # Amount: Required. Either type is acceptable.
 # Units: Required. Value from lists {"Name": "Units"}
@@ -442,7 +442,7 @@ response = {
         "Amount": [int, float],
         "Units": str,
         "Container_Type": str
-    }
+    },
     "Open_Date": str,
     "Expiry_Date": str,
     "Empty_Date": str
@@ -468,7 +468,7 @@ response = {
     "Expiry_Date": str,
     "Empty_Date": str,
     "Components": [
-        # Purchased chemical/lot component
+        # Purchased chemical/lot components
         {
             "lot_id": str,
             "Name": str,
@@ -479,7 +479,7 @@ response = {
             "Units": str,
             "Expiry_Date": str
         },
-        # Prepared chemical/lot component
+        # Prepared chemical/lot components
         {
             "lot_id": str,
             "Name": str,
@@ -494,7 +494,7 @@ response = {
 
 ### `PUT /lots/<lot_id>`
 Description:\
-Update an existing lot record by primary key.
+Update an existing lot record by primary key. Requests are validated against database schema prior to modification.
 
 Returns:\
 Tuple[Response, int]: Modified count or JSON-formatted error message and a 4XX error code.
@@ -530,7 +530,7 @@ request = {
     "Expiry_Date": str,
     "Empty_Date": str,
     "Components": [
-        # Purchased chemical/lot component
+        # Purchased chemical/lot components
         {
             "lot_id": str,
             "Amount": [int, float],
@@ -556,7 +556,7 @@ request = {
 
 # Components: Required. Requires >= 1 components.
 
-# Purchased chemical/lot component
+# Purchased chemical/lot components
 # lot_id: Required. Primary key of an existing lot.
 # Amount: Required. Either type is acceptable.
 # Units: Required. Value from lists {"Name": "Units"}
@@ -592,7 +592,7 @@ response = [
         "Expiry_Date": str,
         "Empty_Date": str,
         "Open_Date": str,
-        "id": str,
+        "_id": str,
         "score": float
     }
 ]
@@ -616,7 +616,7 @@ response = [
         "Expiry_Date": str,
         "Empty_Date": str,
         "Preparation_Date": str,
-        "id": str,
+        "_id": str,
         "score": float
     }
 ]
@@ -714,7 +714,7 @@ response = {
 
 ### `PUT /lists/<list_name>`
 Description:\
-Update an existing list by primary key ("Name"). Requests are validated against database schema prior to insertion.
+Update an existing list by primary key ("Name"). Requests are validated against database schema prior to modification.
 
 Returns:\
 Tuple[Response, int]: JSON response with modified count and status 200 on success or an error message with status 404 or 422 on failure.

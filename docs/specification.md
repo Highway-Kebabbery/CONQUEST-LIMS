@@ -16,7 +16,7 @@ Chemical and lot creation is harmonized across users and the system by the use o
 
 Chemical documents also store information on the total number of lots available and the number of open lots logged under that chemical's primary key (`lots.chemical_id`). These values refresh any time a lot is added or updated and any time a chemical template is updated or retrieved.
 
-CONQUEST LIMS supports fuzzy searches of chemicals and lots by name as well as limited analytics for chemical inventory: The three most popular manufacturers, the number of lots awaiting disposal, and the total number of available lots logged into the system. All Elasticsearch documents mirror changes to the database; there is no direct interaction.
+CONQUEST LIMS supports fuzzy searches of chemicals and lots by name as well as analytics for the chemical inventory aggregated from MongoDB and Elasticsearch: The three most popular manufacturers, the number of lots awaiting disposal, and the total number of available lots logged into the system. All Elasticsearch documents mirror changes to the database; there is no direct interaction.
 
 ## Design Philosophy
 Chemical data are duplicated onto lot records in an attempt to work with the document-based database idea that information commonly accessed together should be stored together. Analysts in the lab will commonly need to access a list of all available lots, or at least all lots for a given chemical. At the expense of marginally larger documents, all required information for a given lot (chemical information plus unique lot information) can be pulled in one query. At the same time, lot creation requests, which are by far a more common occurrence than chemical creation requests, are vastly simplified as the front end is able to safely ignore the need to send anything but information related directly to the unique bottle in the analyst's hands, thus reducing the chance for errors to occur. Finally, the collections remain split because there are many instances in which an analyst may need to view all chemical templates logged in the system. Lot data would be useless in such a case.
@@ -25,7 +25,7 @@ The segregation of chemicals and lots into purchased and prepared sub-categories
 
 All records are stored in MongoDB and served via a Flask-based API. Data validation is enforced at the schema level through dedicated classes to ensure data harmonization and integrity prior to record insertion or update.
 
-The implementation of Elasticsearch allows users to search for chemicals or lots by name which makes it easier to locate records in the system without the need to commit exact chemical or lot names to memory.
+The implementation of Elasticsearch allows users to perform fuzzy searches for chemicals or lots by name which makes it easier to locate records in the system without the need to commit exact chemical or lot names to memory. Suppose that a front-end were to display a page of search results as cards with brief overviews for each result when a user performs a search. Chemical documents in Elasticsearch index only the names and primary keys of chemicals as this, the `Name` value, would be enough for an end-user to identify the result they need, thus allowing a front-end to request only information from the Elasticsearch database when performing a search. Subsequently, when a user clicks on the card of a chemical to load its individual page, the database would be queried for exactly the chemical record in MongoDB that the front end needs and nothing more. Lot documents in Elasticsearch store more information than chemical documents as lots are not required by the system to be unique; two lots could in theory share the exact same information aside from their primary keys. To aid an end-user in the identification of the lot they need when a hypothetical search returns a page with cards displaying minimal information for each lot, Elasticsearch indexes not only the name and database primary key for each lot, but also the opened or prepared date, expiry date, and empty date. When coupled with a [future upgrade](#future-upgrades) to generate unique, human-readable internal lot numbers for each lot that would replace MongoDB's primary key, this would be enough information for an end-user to identify the lot they need based on the minimal information indexed in Elasticsearch and click on its result card. Only then would MongoDB be queried for a full chemical record. Although there is currently no front end, the Elasticsearch schema was designed with a front end in mind.
 
 CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes (locally via Minikube) to allow the system to be deployed, scaled, and managed with full separation between the application and database containers.
 
@@ -35,6 +35,7 @@ CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes (l
     * Purchased chemicals/lots should be created first followed by prepared chemicals/lots that use only purchased lots as components.
 * `lots.chemical_id` links to `chemicals._id`.
 * `lots.Components.lot_id` links to `lots._id`.
+* The system only supports one chemical template for any given, unique combination of manufacturer, manufacturer part number, amount, unit, and container type. Requests to create duplicate templates will be rejected.
 * Optional fields are required to be sent with either `null` or an empty value of the type specified in the schema. The key cannot be missing.
 * Datetimes must be sent to the system in local time with timezone offsets (UTC timezones must be received in the form `+00:00`; **"Z" will not work for UTC**).
 * Datetimes are returned in the UTC timezone.
@@ -72,7 +73,7 @@ CONQUEST-LIMS/
 │       └── validation_error_codes.py
 │    
 ├── docs/
-│   ├── api_reference.md          # Documentation for API end points
+│   ├── api_reference.md          # Documentation for API endpoints
 │   └── specifications.md         # This document
 │
 ├── k8s/                          # Kubernetes deployment files
@@ -344,7 +345,7 @@ record = {
 
 # _id: Not managed. MongoDB default primary key.
 # Name: Required. Must be unique. Primary key.
-# List_Entries: Required. Lists must have at least one entry.
+# List_entries: Required. Lists must have at least one entry.
 # (List entries): At least one entry required.
 ```
 
@@ -357,12 +358,12 @@ document = {
     "Mongo_Collection": str,
     "Name": str,
     "Mongo_id": str,
-    "id": str,
+    "_id": str,
     "score": float
 }
 
 # Mongo_Collection: The name of the MongoDB collection the document originates from.
-# Name: The name of the chemical template the lot is logged under.
+# Name: The name of the chemical template.
 # Mongo_id: The primary key of the corresponding database record.
 # _id: Elasticsearch auto-generated primary key
 # score: The result's relevance score
@@ -376,7 +377,7 @@ document = {
     "Expiry_Date": str,
     "Empty_Date": str,
     "Open_Date": str,
-    "id": str,
+    "_id": str,
     "score": float
 }
 
@@ -398,7 +399,7 @@ document = {
     "Expiry_Date": str,
     "Empty_Date": str,
     "Preparation_Date": str,
-    "id": str,
+    "_id": str,
     "score": float
 }
 
@@ -414,7 +415,7 @@ document = {
 
 ## Data Validation Strategy
 
-Each database schema (Chemical, Lot, List) has a corresponding class module (ChemicalSchema, LotSchema, ListsSchema) which, as necessary and in some cases in addition to the end points, verifies that:
+Each database schema (Chemical, Lot, List) has a corresponding class module (ChemicalSchema, LotSchema, ListsSchema) which, as necessary and in some cases in addition to the endpoints, verifies that:
 
 ### All Schema:
 * All required fields are present.
@@ -544,14 +545,14 @@ All fields in the lot request body, the primary key (if applicable), and the nat
 
 
 ## End-to-End Testing
-The system runs smoke tests through the terminal on start-up inside `setup.sh`, which calls `smoke_test.sh`, to ensure all end points are available and that a successful connection to the database has been established. Elasticsearch is not currently tested in the smoke tests.
+The system runs smoke tests through the terminal on start-up inside `setup.sh`, which calls `smoke_test.sh`, to ensure all endpoints are available and that a successful connection to the database has been established. Elasticsearch is not currently tested in the smoke tests.
 
 ## Future Upgrades
 * The chemical inventory module of CONQUEST LIMS isn't as robust as it could be. Ideally, prepared reagent chemical templates would prescribe which purchased chemicals are allowed to be used for each component, they would prescribe the number of components added, and they would also prescribe the amounts added of each chemical component. Prepared *lots* would then query their parent chemical to receive the prescribed component configurations (chemical_ids, amounts, units). Lots would then receive fields to record the actual amount used for each component, and this field could potentially be validated against the prescribed amount.
-* Maintain current request structure but flatten requests for validation. It would be easier to separate the concerns of validation out by type of validation check. I would likely create for each type of validation check a list of fields for the current schema that receive that validation check check. I could then use each list to check the keys in the flattened request that exist in the list. Checks would be run in the order that validation checks must be run (missing field, missing value, wrong type, and invalid list entry, followed by checks like datetime format, primary key validity, and existence in the database). This would make it easier both to skip optional values in the `HelperFunctions.miss_req_value()` check and also to include the "N/A" string as a valid entry for fields not typed as strings (such as `Amount`). Records would be reconstructed according to the schema definition prior to record insertion.
+* Maintain current request structure but flatten requests for validation. It would be easier to separate the concerns of validation out by type of validation check. I would likely create for each type of validation check a list of fields for the current schema that receive that validation check. I could then use each list to check the keys in the flattened request that exist in the list. Checks would be run in the order that validation checks must be run (missing field, missing value, wrong type, and invalid list entry, followed by checks like datetime format, primary key validity, and existence in the database). This would make it easier both to skip optional values in the `HelperFunctions.miss_req_value()` check and also to include the "N/A" string as a valid entry for fields not typed as strings (such as `Amount`). Records would be reconstructed according to the schema definition prior to record insertion.
 * Develop a generator for unique and human-readable internal lot numbers (*e.g.* 20250416-L0001).
     * The difficulty would be ensuring that, if multiple lots are logged concurrently by separate users, each logged lot still receives a unique internal lot number.
-* Move Elasticsearch document construction out of end point logic and into class methods.
+* Move Elasticsearch document construction out of endpoint logic and into class methods.
 * Reject requests to replace a chemical template with a chemical that requires the replaced chemical as a preparation component.
     * This cannot be achieved until the system is reconfigured to mirror the change notes above.
     * This is an extreme edge case.

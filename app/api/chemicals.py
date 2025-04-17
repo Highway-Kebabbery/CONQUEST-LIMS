@@ -176,7 +176,7 @@ def get_chemical(chemical_id) -> Tuple[Response, int]:
 def update_chemical(chemical_id) -> Tuple[Response, int]:
     """
     Updates a chemical template by primary key. Requests are 
-    validated against database schema prior to insertion.
+    validated against database schema prior to modification.
 
     Parameters:
         chemical_id (str): ObjectId string of the chemical to update. Must match the
@@ -239,7 +239,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
                     )
 
                     if (
-                        es_result.get("result") != "created"
+                        es_result.get("result") != "updated"
                         or es_result.get("_shards", {}).get("failed", 1) > 0
                     ):
                         response = jsonify({

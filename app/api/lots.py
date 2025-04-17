@@ -177,7 +177,8 @@ def get_lot(lot_id) -> Tuple[Response, int]:
 @lots.route("/<lot_id>", methods=["PUT"])
 def update_lot(lot_id) -> Tuple[Response, int]:
     """
-    Update an existing lot record by primary key.
+    Update an existing lot record by primary key. Requests are validated against 
+    database schema prior to modification.
 
     Parameters:
         lot_id (str): ObjectId string of the lot to update.
@@ -241,7 +242,7 @@ def update_lot(lot_id) -> Tuple[Response, int]:
                     )
 
                     if (
-                        es_result.get("result") != "created"
+                        es_result.get("result") != "updated"
                         or es_result.get("_shards", {}).get("failed", 1) > 0
                     ):
                         response = jsonify({
