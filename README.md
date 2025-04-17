@@ -42,7 +42,7 @@ For a detailed look at the design philosophy, please refer to the [specification
 
 ### Guided Tour
 * Copy the url provided in the terminal at the end of `setup.sh`'s execution or run `minikube ip` to retrieve the minikube ip for use in constructing the request address. This address (of the form `http://<minikube id>:30007/`) is used to make requests to the app.
-    * ***Be sure to replace*** `<minikube ip>` ***in the request below with the ip address returned in your terminal.***
+    * ***Be sure to replace*** `<minikube ip>` ***in the requests below with the ip address returned in your terminal.***
 * Send GET requests to each endpoint using:
     * `curl http://<minikube ip>:30007/`
     * `curl http://<minikube ip>:30007/chemicals | jq`
