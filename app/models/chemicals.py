@@ -168,8 +168,8 @@ class ChemicalSchema():
                             {ChemicalSchema.SOURCE_KEY: "Purchased",
                              LotSchema.OPEN_KEY: {"$ne": None}}
                         ]},
-                        {ChemicalSchema.SOURCE_KEY: "Prepared"}]
-                    }
+                        {ChemicalSchema.SOURCE_KEY: "Prepared"}
+                    ]}
                 ]
             })
 

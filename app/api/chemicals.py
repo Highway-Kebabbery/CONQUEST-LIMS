@@ -138,7 +138,7 @@ def get_chemical(chemical_id) -> Tuple[Response, int]:
         chemical_id (str): ObjectId string of the chemical to retrieve.
 
     Returns:
-        Tuple[Response, int]: JSON response with the chemical record and status 200,
+        Tuple[Response, int]: JSON response with the chemical record and status 200
         or a 400/404 error response on failure.
     """
     try:
@@ -183,7 +183,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
         primary key in the request body.
 
     Returns:
-        Tuple[Response, int]: JSON response with modified count and status 200 on success,
+        Tuple[Response, int]: JSON response with modified count and status 200 on success
         or error response with status 400, 404, or 422.
     """
     data = request.get_json()
@@ -272,7 +272,7 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
         chemical_id (str): ObjectId string of the chemical to delete.
 
     Returns:
-        Tuple[Response, int]: JSON response with deleted count and status 204 on success,
+        Tuple[Response, int]: JSON response with deleted count and status 204 on success
         or error response with status 400 or 404.
     """
     try:

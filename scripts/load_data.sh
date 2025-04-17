@@ -338,10 +338,48 @@ prep_lot_1_id=$(post_lot "$prep_lot_1")
 
 ########## End of minimal object set needed to show entire lot logging functionality ##########
 
-########## Additional object set needed to show ElasticSearch functionality ##########
-
-# To be implemented.
 
 ########## Additional object set needed to show ElasticSearch functionality ##########
+
+# Log a few lots that are expired but not empty; lots awaiting disposal
+
+exp_purch_lot_3='{
+    "chemical_id": "'"$purch_chem_3_id"'",
+    "Manufacturer_Lot_Batch_Number": "16668JT485F",
+    "Open_Date": "2025-03-04T14:30:00-04:00",
+    "Expiry_Date": "2018-03-17T14:00:00-04:00",
+    "Empty_Date": null
+}'
+
+# Log a bunch of additional lots so aggregate functions have something 
+# interesting to look at
+post_lot "$prep_lot_1" > /dev/null
+post_lot "$prep_lot_2" > /dev/null
+post_lot "$prep_lot_1" > /dev/null
+post_lot "$prep_lot_2" > /dev/null
+post_lot "$prep_lot_1" > /dev/null
+post_lot "$prep_lot_2" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_1" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+post_lot "$purch_lot_2" > /dev/null
+
+post_lot "$exp_purch_lot_3" > /dev/null
+post_lot "$exp_purch_lot_3" > /dev/null
+post_lot "$exp_purch_lot_3" > /dev/null
 
 echo "Database successfully loaded with lists, lots, and chemicals."

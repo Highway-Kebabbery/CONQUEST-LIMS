@@ -29,6 +29,8 @@ def create_app():
     """
     app = Flask(__name__)
     
+    app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
+
     app.register_blueprint(lists, url_prefix="/lists")
     app.register_blueprint(chemicals, url_prefix="/chemicals")
     app.register_blueprint(lots, url_prefix="/lots")

@@ -37,7 +37,7 @@ check_and_prompt_install jq
 
 
 # Spin up containers locally using docker compose for dev not requiring Minikube
-#: '
+: '
 # Spin up Docker containers
 API_URL=$"http://localhost:5000"
 
@@ -58,7 +58,7 @@ for i in {1..15}; do
     break
   else
     echo "Waiting for API... ($i/15)"
-    sleep 10
+    sleep 15
   fi
 done
 
@@ -66,7 +66,7 @@ if ! curl -s "$API_URL/" > /dev/null; then
   echo "API did not become available in time."
   exit 1
 fi
-#'
+'
 
 # Check for and start Minikube
 ## Only use when testing orchestration. Too much overhead for app dev.
@@ -82,7 +82,7 @@ fi
 ##  * Test/get Minikube ip address
 ##  * Confirm service is up
 
-: '
+#: '
 check_and_prompt_install minikube \
 "curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb && \
 sudo dpkg -i minikube_latest_amd64.deb && \
@@ -102,12 +102,8 @@ echo -e "Full disclosure:\n \
 Each readiness check takes 30 seconds. Expect a ~3.5-minute initialization.\n \
 I do not know why the app takes so long to initialize when run in k8s. The \n \
 initialization time increased by about 2.5 minutes after implementing \n \
-Elasticsearch. I would love to optimize performance, but I am FAR beyond \n \
-being out of time to do that.\n\n \
-Strictly with respect to the skills THIS project required: I knew Python \n \
-and how a RDBMS should work going into this build; one relevant skill \n \
-and one tangentially-related skill. Everything else this build required \n \
-was new to me and I am severely burned out.\n\n" \
+Elasticsearch. I would love to optimize performance, but I am far beyond \n \
+being out of time to do that.\n\n"
 
 for i in {1..20}; do
   if {
@@ -128,7 +124,7 @@ if ! curl -s "$API_URL/" > /dev/null; then
   echo "Cluster did not become available in time."
   exit 1
 fi
-'
+#'
 
 # Make scripts executable
 chmod +x scripts/*.sh

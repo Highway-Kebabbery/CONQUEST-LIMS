@@ -5,6 +5,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+app/__pycache__
+app/api/__pycache__
+app/models/__pycache__
+app/utils/__pycache__
 
 # Environments
 .venv/
@@ -15,6 +19,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+tests/__pycache__
 
 # Jupyter/IPython
 .ipynb_checkpoints/

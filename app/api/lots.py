@@ -17,7 +17,7 @@ from app.constants import LOTS_COLLECTION, ES_MONGO_ID_KEY, ES_MONGO_COLL_KEY
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple
 import copy
 
@@ -60,7 +60,7 @@ def add_lot() -> Tuple[Response, int]:
     prior to insertion.
 
     Returns:
-        Tuple[Response, int]: JSON response with inserted ID (201),
+        Tuple[Response, int]: JSON response with inserted ID (201)
         or error message (4XX) if validation fails.
     """
     data = request.get_json()
@@ -383,4 +383,64 @@ def search_lots() -> Tuple[Response, int]:
     except Exception as e:
         response = jsonify({"error": f"Elasticsearch unavailable: {e}"})
     
+    return response
+
+@lots.route("/analytics",methods=["GET"])
+def get_lot_analytics() -> Tuple[Response, int]:
+    """
+    Returns analytics related to the lots collection.
+
+    Parameters:
+        None
+    
+    Returns:
+        JSON object with: the total number of available lots logged in the system, the 
+        number of lots awaiting disposal (expired but not empty), and the name of the 
+        chemical with the most lots logged under its primary key.
+    """
+    # Find number of lots logged
+    now = datetime.now(timezone.utc)
+    total_lots = current_app.lots.count_documents({
+        "$and": [
+            {LotSchema.EXPIRY_KEY: {"$gt": now}},
+            {LotSchema.EMPTY_KEY: {"$eq": None}}
+        ]
+    })
+
+    lots_awaiting_disposal = current_app.lots.count_documents({
+        "$and": [
+            {LotSchema.EXPIRY_KEY: {"$lte": now}},
+            {LotSchema.EMPTY_KEY: {"$eq": None}}
+        ]
+    })
+
+    # Aggregation query
+    # '.keyword' specifies an exact-match search
+    es_agg_query = {
+        "size": 0,
+        "aggs": {
+            "top_lots": {
+                "terms": {
+                    "field": "Name.keyword",
+                    "size": 3
+                }
+            }
+        }
+    }
+
+    try:
+        es_response = current_app.es.search(index=LOTS_COLLECTION, body=es_agg_query)
+        top_lots_buckets = es_response.get("aggregations", {}).get("top_lots", {}).get("buckets", [])
+
+        top_lots = [bucket["key"] for bucket in top_lots_buckets]
+
+        response = jsonify({
+            "total_lots_all_chemicals": total_lots,
+            "lots_awaiting_disposal": lots_awaiting_disposal,
+            "most_populous_chemicals": top_lots
+        }), 200
+
+    except Exception as e:
+        response = jsonify({"error": f"Failed to retrieve analytics: {e}"})
+
     return response
