@@ -13,10 +13,11 @@ from flask import Blueprint, request, jsonify, current_app
 from flask.wrappers import Response
 from app.utils.validation_error_codes import ValidationErrorCodes
 from app.models.lots import LotSchema
+from app.constants import LOTS_COLLECTION, ES_MONGO_ID_KEY, ES_MONGO_COLL_KEY
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple
 import copy
 
@@ -59,7 +60,7 @@ def add_lot() -> Tuple[Response, int]:
     prior to insertion.
 
     Returns:
-        Tuple[Response, int]: JSON response with inserted ID (201),
+        Tuple[Response, int]: JSON response with inserted ID (201)
         or error message (4XX) if validation fails.
     """
     data = request.get_json()
@@ -86,6 +87,44 @@ def add_lot() -> Tuple[Response, int]:
 
             response = jsonify({"inserted_id": str(result.inserted_id)}), 201
 
+            # Index lot in Elasticsearch
+            es_doc = {
+                ES_MONGO_COLL_KEY: LOTS_COLLECTION,
+                LotSchema.NAME_KEY: record.get(
+                    LotSchema.NAME_KEY,
+                    ""
+                ),
+                ES_MONGO_ID_KEY: str(result.inserted_id),
+                LotSchema.EXPIRY_KEY: record[LotSchema.EXPIRY_KEY],
+                LotSchema.EMPTY_KEY: record[LotSchema.EMPTY_KEY]
+            }
+            if LotSchema.OPEN_KEY in record:
+                es_doc[LotSchema.OPEN_KEY] = record[LotSchema.OPEN_KEY]
+            elif LotSchema.PREP_DATE_KEY in record:
+                es_doc[LotSchema.PREP_DATE_KEY] = record[LotSchema.PREP_DATE_KEY]
+            
+            try:
+                es_result = current_app.es.index(
+                    index=LOTS_COLLECTION,
+                    id=str(result.inserted_id),
+                    document=es_doc
+                )
+
+                if (
+                    es_result.get("result") != "created"
+                    or es_result.get("_shards", {}).get("failed", 1) > 0
+                ):
+                    response = jsonify({
+                        "inserted_id": str(result.inserted_id),
+                        "warning": "Inserted to MongoDB; failed to index in Elasticsearch."
+                    }), 207
+
+            except Exception as e:
+                response = jsonify({
+                        "inserted_id": str(result.inserted_id),
+                        "warning": f"Inserted to MongoDB; failed to index in Elasticsearch: {e}"
+                    }), 207
+                
         elif form_val[1] == 5 or form_val[1] == 8:
             msg = ValidationErrorCodes.gen_val_err_msg(form_val)
             response = jsonify({"error": msg}), 404
@@ -177,7 +216,43 @@ def update_lot(lot_id) -> Tuple[Response, int]:
                 )
 
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
-            
+
+                # Index lot in Elasticsearch
+                es_doc = {
+                    ES_MONGO_COLL_KEY: LOTS_COLLECTION,
+                    LotSchema.NAME_KEY: record.get(
+                        LotSchema.NAME_KEY,
+                        ""
+                    ),
+                    ES_MONGO_ID_KEY: lot_id,
+                    LotSchema.EXPIRY_KEY: record[LotSchema.EXPIRY_KEY],
+                    LotSchema.EMPTY_KEY: record[LotSchema.EMPTY_KEY]
+                }
+                if LotSchema.OPEN_KEY in record:
+                    es_doc[LotSchema.OPEN_KEY] = record[LotSchema.OPEN_KEY]
+                elif LotSchema.PREP_DATE_KEY in record:
+                    es_doc[LotSchema.PREP_DATE_KEY] = record[LotSchema.PREP_DATE_KEY]
+                
+                try:
+                    es_result = current_app.es.index(
+                        index=LOTS_COLLECTION,
+                        id=lot_id,
+                        document=es_doc
+                    )
+
+                    if (
+                        es_result.get("result") != "created"
+                        or es_result.get("_shards", {}).get("failed", 1) > 0
+                    ):
+                        response = jsonify({
+                            "warning": "Updated in MongoDB; failed to index in Elasticsearch."
+                        }), 207
+
+                except Exception as e:
+                    response = jsonify({
+                            "warning": "Updated in MongoDB; failed to index in Elasticsearch: {e}"
+                        }), 207
+                
             except InvalidId:
                 # This is a failsafe. validate_lot_forms() handles this case.
                 response = jsonify({"error": "Invalid ID format"}), 400
@@ -209,7 +284,163 @@ def delete_lot(lot_id) -> Tuple[Response, int]:
         else:
             response = "", 204
 
+            # Delete from Elasticsearch
+            try:
+                deleted_es_result = current_app.es.delete(
+                    index=LOTS_COLLECTION,
+                    id=lot_id
+                )
+
+                if (
+                    deleted_es_result.get("result") != "deleted"
+                    or deleted_es_result.get("_shards", {}).get("failed", 1) > 0
+                ):
+                    response = jsonify({
+                        "warning": "Deleted from MongoDB; failed to delete from Elasticsearch."
+                    }), 207
+
+            except Exception as e:
+                response = jsonify({
+                        "warning": f"Deleted from MongoDB; failed to delete from Elasticsearch: {str(e)}"
+                    }), 207
+                
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400
+
+    return response
+
+@lots.route("/search",methods=["GET"])
+def search_lots() -> Tuple[Response, int]:
+    """
+    Full-text search for lots by name.
+
+    Parameters:
+        query (str): Search keywords
+    
+    Returns:
+        JSON list of matching lot records with partial or full name matches.
+    """
+    query = request.args.get("query")
+    if not query:
+        response = jsonify({"error": "Missing query"}), 400
+
+    try:
+        es_query = {
+            "query": {
+                "match": {
+                    LotSchema.NAME_KEY: {
+                        "query": query,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            }
+        }
+
+        results = current_app.es.search(
+            index=LOTS_COLLECTION,
+            body=es_query
+        )
+        hits = results.get("hits", {}).get("hits", [])
+
+        response_data = []
+        for hit in hits:
+            source = hit["_source"]
+
+            lot_data = {
+                "_id": hit["_id"],
+                ES_MONGO_COLL_KEY: source.get(
+                    ES_MONGO_COLL_KEY,
+                    ""
+                ),
+                LotSchema.NAME_KEY: source.get(
+                    LotSchema.NAME_KEY,
+                    ""
+                ),
+                ES_MONGO_ID_KEY: source.get(
+                    ES_MONGO_ID_KEY,
+                    ""
+                ),
+                LotSchema.EXPIRY_KEY: source.get(
+                    LotSchema.EXPIRY_KEY,
+                    ""
+                ),
+                LotSchema.EMPTY_KEY: source.get(
+                    LotSchema.EMPTY_KEY,
+                    ""
+                ),
+                "score": hit["_score"]
+            }
+
+            if LotSchema.OPEN_KEY in source:
+                lot_data[LotSchema.OPEN_KEY] = source[LotSchema.OPEN_KEY]
+            elif LotSchema.PREP_DATE_KEY in source:
+                lot_data[LotSchema.PREP_DATE_KEY] = source[LotSchema.PREP_DATE_KEY]
+            
+            response_data.append(lot_data)
+                
+        response = jsonify(response_data), 200
+
+    except Exception as e:
+        response = jsonify({"error": f"Elasticsearch unavailable: {e}"})
+    
+    return response
+
+@lots.route("/analytics",methods=["GET"])
+def get_lot_analytics() -> Tuple[Response, int]:
+    """
+    Returns analytics related to the lots collection.
+
+    Parameters:
+        None
+    
+    Returns:
+        JSON object with: the total number of available lots logged in the system, the 
+        number of lots awaiting disposal (expired but not empty), and the name of the 
+        chemical with the most lots logged under its primary key.
+    """
+    # Find number of lots logged
+    now = datetime.now(timezone.utc)
+    total_lots = current_app.lots.count_documents({
+        "$and": [
+            {LotSchema.EXPIRY_KEY: {"$gt": now}},
+            {LotSchema.EMPTY_KEY: {"$eq": None}}
+        ]
+    })
+
+    lots_awaiting_disposal = current_app.lots.count_documents({
+        "$and": [
+            {LotSchema.EXPIRY_KEY: {"$lte": now}},
+            {LotSchema.EMPTY_KEY: {"$eq": None}}
+        ]
+    })
+
+    # Aggregation query
+    # '.keyword' specifies an exact-match search
+    es_agg_query = {
+        "size": 0,
+        "aggs": {
+            "top_lots": {
+                "terms": {
+                    "field": "Name.keyword",
+                    "size": 3
+                }
+            }
+        }
+    }
+
+    try:
+        es_response = current_app.es.search(index=LOTS_COLLECTION, body=es_agg_query)
+        top_lots_buckets = es_response.get("aggregations", {}).get("top_lots", {}).get("buckets", [])
+
+        top_lots = [bucket["key"] for bucket in top_lots_buckets]
+
+        response = jsonify({
+            "total_lots_all_chemicals": total_lots,
+            "lots_awaiting_disposal": lots_awaiting_disposal,
+            "most_populous_chemicals": top_lots
+        }), 200
+
+    except Exception as e:
+        response = jsonify({"error": f"Failed to retrieve analytics: {e}"})
 
     return response

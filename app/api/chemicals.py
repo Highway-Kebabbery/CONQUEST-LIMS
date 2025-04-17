@@ -11,6 +11,7 @@ duplicate names for the same chemical.
 
 from flask import Blueprint, request, jsonify, current_app
 from flask.wrappers import Response
+from app.constants import CHEMICALS_COLLECTION, ES_MONGO_ID_KEY, ES_MONGO_COLL_KEY
 from app.utils.validation_error_codes import ValidationErrorCodes
 from app.models.chemicals import ChemicalSchema
 
@@ -82,6 +83,7 @@ def add_chemical() -> Tuple[Response, int]:
         form_val = new_chemical.validate_chemical_form(request.method)
 
         if form_val[1] == 0:
+            # Build chemical record and insert into database
             record = new_chemical.build_chem_record(request.method)
             result = new_chemical.insert_update_chem_record(
                 current_app.chemicals,
@@ -90,6 +92,37 @@ def add_chemical() -> Tuple[Response, int]:
             )
 
             response = jsonify({"inserted_id": str(result.inserted_id)}), 201
+
+            # Index chemical name in Elasticsearch
+            es_doc = {
+                ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
+                ChemicalSchema.NAME_KEY: record.get(
+                    ChemicalSchema.NAME_KEY,
+                    ""
+                ),
+                ES_MONGO_ID_KEY: str(result.inserted_id)
+            }
+            try:
+                es_result = current_app.es.index(
+                    index=CHEMICALS_COLLECTION,
+                    id=str(result.inserted_id),
+                    document=es_doc
+                )
+
+                if (
+                    es_result.get("result") != "created"
+                    or es_result.get("_shards", {}).get("failed", 1) > 0
+                ):
+                    response = jsonify({
+                        "inserted_id": str(result.inserted_id),
+                        "warning": "Inserted to MongoDB; failed to index in Elasticsearch."
+                    }), 207
+
+            except Exception as e:
+                response = jsonify({
+                        "inserted_id": str(result.inserted_id),
+                        "warning": f"Inserted to MongoDB; failed to index in Elasticsearch: {e}"
+                    }), 207
         else:
             msg = ValidationErrorCodes.gen_val_err_msg(form_val)
             response = jsonify({"error": msg}), 422
@@ -105,7 +138,7 @@ def get_chemical(chemical_id) -> Tuple[Response, int]:
         chemical_id (str): ObjectId string of the chemical to retrieve.
 
     Returns:
-        Tuple[Response, int]: JSON response with the chemical record and status 200,
+        Tuple[Response, int]: JSON response with the chemical record and status 200
         or a 400/404 error response on failure.
     """
     try:
@@ -150,7 +183,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
         primary key in the request body.
 
     Returns:
-        Tuple[Response, int]: JSON response with modified count and status 200 on success,
+        Tuple[Response, int]: JSON response with modified count and status 200 on success
         or error response with status 400, 404, or 422.
     """
     data = request.get_json()
@@ -174,6 +207,7 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
 
         if form_val[1] == 0:
             try:
+                # Build updated chemical record and update in database
                 record = updated_chemical.build_chem_record(
                     request.method,
                     chemical_id
@@ -188,6 +222,35 @@ def update_chemical(chemical_id) -> Tuple[Response, int]:
                 
                 response = jsonify({"modified_count": str(result.modified_count)}), 200
 
+                # Update corresponding document in Elasticsearch
+                updated_es_doc = {
+                    ES_MONGO_COLL_KEY: CHEMICALS_COLLECTION,
+                    ChemicalSchema.NAME_KEY: record.get(
+                        ChemicalSchema.NAME_KEY,
+                        ""
+                    ),
+                    ES_MONGO_ID_KEY: chemical_id
+                }
+                try:
+                    es_result = current_app.es.index(
+                        index=CHEMICALS_COLLECTION,
+                        id=chemical_id,
+                        document=updated_es_doc
+                    )
+
+                    if (
+                        es_result.get("result") != "created"
+                        or es_result.get("_shards", {}).get("failed", 1) > 0
+                    ):
+                        response = jsonify({
+                            "warning": "Updated in MongoDB; failed to index in Elasticsearch."
+                        }), 207
+
+                except Exception as e:
+                    response = jsonify({
+                            "warning": f"Updated in MongoDB; failed to index in Elasticsearch: {e}"
+                        }), 207
+                
             except InvalidId:
                 # This is a failsafe. validate_chemical_forms() handles this case.
                 response = jsonify({"error": "Invalid ID format"}), 400
@@ -209,10 +272,11 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
         chemical_id (str): ObjectId string of the chemical to delete.
 
     Returns:
-        Tuple[Response, int]: JSON response with deleted count and status 204 on success,
+        Tuple[Response, int]: JSON response with deleted count and status 204 on success
         or error response with status 400 or 404.
     """
     try:
+        # Delete chemical record from the database
         result = current_app.chemicals.delete_one(
             {ChemicalSchema.CHEM_ID_KEY: ObjectId(chemical_id)}
         )
@@ -222,7 +286,87 @@ def delete_chemical(chemical_id) -> Tuple[Response, int]:
         else:
             response = jsonify({"deleted_count": result.deleted_count}), 204
 
+            # Delete from Elasticsearch
+            try:
+                deleted_es_result = current_app.es.delete(
+                    index=CHEMICALS_COLLECTION,
+                    id=chemical_id
+                )
+
+                if (
+                    deleted_es_result.get("result") != "deleted"
+                    or deleted_es_result.get("_shards", {}).get("failed", 1) > 0
+                ):
+                    response = jsonify({
+                        "warning": "Deleted from MongoDB; failed to delete from Elasticsearch."
+                    }), 207
+
+            except Exception as e:
+                response = jsonify({
+                        "warning": f"Deleted from MongoDB; failed to delete from Elasticsearch: {str(e)}"
+                    }), 207
+                
     except InvalidId:
         response = jsonify({"error": "Invalid ID format"}), 400   
+    
+    return response
+
+@chemicals.route("/search",methods=["GET"])
+def search_chemicals() -> Tuple[Response, int]:
+    """
+    Full-text search for chemicals by name.
+    
+    Parameters:
+        query (str): Search keywords
+    
+    Returns:
+        JSON list of matching chemical records with partial or full name matches.
+    """
+    query = request.args.get("query")
+    if not query:
+        response = jsonify({"error": "Missing query"}), 400
+    
+    try:
+        es_query = {
+            "query": {
+                "match": {
+                    ChemicalSchema.NAME_KEY: {
+                        "query": query,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            }
+        }
+
+        results = current_app.es.search(
+            index=CHEMICALS_COLLECTION,
+            body=es_query
+        )
+        hits = results.get("hits", {}).get("hits", [])
+
+        response_data = [
+            {
+                "_id": hit["_id"],
+                ES_MONGO_COLL_KEY: hit["_source"].get(
+                    ES_MONGO_COLL_KEY,
+                    ""
+                ),
+                ChemicalSchema.NAME_KEY: hit["_source"].get(
+                    ChemicalSchema.NAME_KEY,
+                    ""
+                ),
+                ES_MONGO_ID_KEY: hit["_source"].get(
+                    ES_MONGO_ID_KEY,
+                    ""
+                ),
+                "score": hit["_score"]
+            }
+            for hit in hits
+        ]
+
+        response = jsonify(response_data), 200
+
+    except Exception as e:
+        response = jsonify({"error": f"Elasticsearch unavailable: {e}"})
     
     return response

@@ -41,7 +41,7 @@ def add_list() -> Tuple[Response, int]:
     database schema prior to insertion.
 
     Returns:
-        Tuple[Response, int]: A JSON response containing the inserted ID and a 201 status code,
+        Tuple[Response, int]: A JSON response containing the inserted ID and a 201 status code
         or an error message with a 4XX status code if validation fails.
     """
     data = request.get_json()
@@ -80,7 +80,7 @@ def get_list(list_name) -> Tuple[Response, int]:
         list_name (str): The name of the list to fetch.
 
     Returns:
-        Tuple[Response, int]: JSON response with list data and status 200,
+        Tuple[Response, int]: JSON response with list data and status 200
         or an error message with status 404 if not found.
     """
     result = current_app.lists.find_one(
@@ -106,7 +106,7 @@ def update_list(list_name) -> Tuple[Response, int]:
         request body.
 
     Returns:
-        Tuple[Response, int]: JSON response with modified count and status 200 on success,
+        Tuple[Response, int]: JSON response with modified count and status 200 on success
         or an error message with status 404 or 422 on failure.
     """
     data = request.get_json()
@@ -149,13 +149,14 @@ def update_list(list_name) -> Tuple[Response, int]:
 def delete_list(list_name) -> Tuple[Response, int]:
     """
     Delete a validated list from the database by primary key ("Name"). This action 
-    is not recommended in production environments.
+    is not recommended in production environments. Deleting certain lists can break 
+    the chemical inventory system.
 
     Parameters:
         list_name (str): Name of the list to delete.
 
     Returns:
-        Tuple[Response, int]: Empty response with 204 on success,
+        Tuple[Response, int]: Empty response with 204 on success
         or error message with 404 if the list is not found.
     """
     result = current_app.lists.delete_one(

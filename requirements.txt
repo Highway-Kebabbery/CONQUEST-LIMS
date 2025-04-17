@@ -2,3 +2,4 @@ flask==2.3.3
 pymongo==4.6.1
 mongomock
 pytest
+elasticsearch==8.11.1

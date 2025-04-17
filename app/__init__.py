@@ -8,10 +8,12 @@ attributes.
 """
 from flask import Flask
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure as DBConnectionFailure
+from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError
 from app.api.lists import lists
 from app.api.chemicals import chemicals
 from app.api.lots import lots
+from app.constants import LISTS_COLLECTION, CHEMICALS_COLLECTION, LOTS_COLLECTION
 import os, time
 
 def create_app():
@@ -27,6 +29,8 @@ def create_app():
     """
     app = Flask(__name__)
     
+    app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
+
     app.register_blueprint(lists, url_prefix="/lists")
     app.register_blueprint(chemicals, url_prefix="/chemicals")
     app.register_blueprint(lots, url_prefix="/lots")
@@ -41,17 +45,39 @@ def create_app():
                 app.db = app.mongo_client.get_default_database()
                 print("Connected to MongoDB")
                 break
-            except ConnectionFailure:
+            except DBConnectionFailure:
                 print(f"Failed to connect to MongoDB ({i + 1}/15)")
                 time.sleep(3)
         
         else:
-            raise ConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
+            raise DBConnectionFailure("Failed to connect to MongoDB after multiple attempts.")
 
-        app.chemicals = app.db.chemicals
-        app.lots = app.db.lots
-        app.lists = app.db.lists
+        app.chemicals = app.db[CHEMICALS_COLLECTION]
+        app.lots = app.db[LOTS_COLLECTION]
+        app.lists = app.db[LISTS_COLLECTION]
     
+    if not hasattr(app, "es"):
+        es_uri = os.getenv("ELASTIC_URI", "http://localhost:9200")
+
+        for i in range(10):
+            try:
+                # Wouldn't hardcode passwords in production environment.
+                app.es = Elasticsearch(es_uri, basic_auth=("elastic", "changeme"), verify_certs=False)
+
+
+                # Check if ES is responding to ping
+                if app.es.ping():
+                    print("Connected to Elasticsearch")
+                    break
+                else:
+                    raise ESConnectionError("Ping to Elasticsearch failed")
+
+            except ESConnectionError as e:
+                print(f"Failed to connect to Elasticsearch ({i + 1}/10): {e}")
+                time.sleep(3)
+        else:
+            raise ESConnectionError("Failed to connect to Elasticsearch after multiple attempts.")
+        
     @app.route("/")
     def index():
         return "Prepare to VANQUISH your competition.\n"

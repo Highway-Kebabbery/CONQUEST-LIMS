@@ -1,9 +1,11 @@
 # <div align="center">CONQUEST-LIMS</div>
 ## Description
-CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust data-entry validation system and supports CRUD operations for chemical templates, lot records, and lists used to control validated-entry fields. CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes. Minikube is used as a local Kubernetes cluster to simulate real-world orchestration, allowing services to be deployed, scaled, and managed with full separation between the application and database containers.
+CONQUEST-LIMS is a Flask- and MongoDB-based Laboratory Information Management System (LIMS) built to manage chemical inventories in highly regulated lab environments. It has a robust data-entry validation system and supports CRUD operations for chemical templates, lot records, and lists used to control validated-entry fields. CONQUEST LIMS is containerized using Docker and orchestrated using Kubernetes. Minikube is used as a local Kubernetes cluster to simulate real-world orchestration, allowing services to be deployed, scaled, and managed with full separation between the application and database containers.
 
 ## Features
 ### Current
+For full system behavior, schema, and validation detail, see [docs/specifications.md](docs/specification.md)
+
 * Chemical templates: Defines a chemical with a unique combination of manufacturer, manufacturer part number, amount, units, and container type which distinguishes it from other chemicals in order to standardize the entry of standards and reagents in the system and avoid the creation of duplicate entries.
 * Lot management: Record and manage bottles or containers tied to a specific chemical template. Record which chemical lots were used in the preparation of prepared chemical lots.
 * Supports separate, tailored data for in-house prepared standards or reagents and externally purchased standards or reagents.
@@ -16,7 +18,7 @@ CONQUEST-LIMS is a lightweight, Flask- and MongoDB-based Laboratory Information 
 
 ### Planned:
 * ElasticSearch implementation is currently underway for fuzzy searches of chemical and lot names.
-* For a detailed list of additional planned upgrades, please refer to [docs/specification.md](./docs/specification.md)
+* For a detailed list of additional planned upgrades, please refer to [docs/specification.md](./docs/specification.md#future-upgrades)
 
 ## How to Use
 (DRAFT, THIS IS A DRAFT)
@@ -142,6 +144,7 @@ CONQUEST-LIMS/
 │
 ├── app/
 │   ├── __init__.py               # Initializes Flask app and MongoDB client
+│   ├──constants.py               # Constants shared by all modules
 │   ├── api/                      # Flask Blueprints for API endpoints
 │   │   ├── chemicals.py
 │   │   ├── lists.py
@@ -163,25 +166,27 @@ CONQUEST-LIMS/
 ├── k8s/                          # Kubernetes deployment files
 │   ├── app-deployment.yaml
 │   ├── app-service.yaml
+│   ├── elasticsearch-deployment.yaml
+│   ├── elasticsearch-service.yaml
 │   ├── mongo-deployment.yaml
 │   └── mongo-service.yaml
 │
 ├── scripts/                      # Kubernetes deployment files
-│   ├── clean.sh                  # Tears down containers and volumes
-│   ├── load_data.sh              # Called in setup.sh
+│   ├── clean.sh                  # Tears down containers, pods, and volumes
+│   ├── load_data.sh              # Called in setup.sh. Initializes database with data
 │   └── smoke_test.sh             # Called in setup.sh
 │
-├── tests/                        # Full integration test suite for each module and edge cases
+├── tests/                        # Full integration test suite for api and database
 │
+├── docker-compose.yml            # Development only; defines containers for services
 ├── Dockerfile                    # Defines the app container image
-├── docker-compose.yml            # Kept for testing without k8s
 ├── requirements.txt
 │
 ├── run.py                        # Entry point for the app from Dockerfile
 │
 ├── README.md
 │
-└── setup.sh                      # Entry point for the system from the terminal
+└── setup.sh                      # Start here. Entry point for system from terminal
 ```
 
 ### (Setting up environment (WSL, etc.))

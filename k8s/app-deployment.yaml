@@ -21,3 +21,5 @@ spec:
         env:
           - name: MONGO_URI
             value: mongodb://mongo:27017/conquest-lims-db
+          - name: ELASTIC_URI
+            value: http://elasticsearch:9200

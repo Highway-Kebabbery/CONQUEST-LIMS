@@ -1,9 +1,8 @@
 #!/bin/bash
-minikube_ip="$1"
+BASE_URL="$1"
 
 set -e
 
-BASE_URL="http://$minikube_ip:30007"
 HEADERS=(-H "Content-Type: application/json")
 
 # ----- Lists -----
