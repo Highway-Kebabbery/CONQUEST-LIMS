@@ -37,7 +37,9 @@ check_and_prompt_install docker \
 sh get-docker.sh && \
 rm get-docker.sh && \
 sudo usermod -aG docker \$USER && \
-newgrp docker"
+echo 'Docker installed. Restart your terminal or run '\''exec \$SHELL'\'' and then rerun ./setup.sh.' && \
+exit 0"
+
 check_and_prompt_install jq
 
 
