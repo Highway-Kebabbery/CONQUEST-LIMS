@@ -33,7 +33,7 @@ For a detailed look at the design philosophy, please refer to the [specification
 * Clone the repository and navigate to the root directory of the project.
 * Run the command `chmod +x setup.sh`.
 * Run the command `./setup.sh` to initialise the database.
-    * If installing Docker for the first time, and if using WSL, the official Docker installation script will note that it detected your WSL wnvironment and recommend a windows product instead. The script will wait 20 seconds. Ignore Docker. When the wait time ends, you may be prompted for your password and installation will continue.
+    * If installing Docker for the first time, and if using WSL, the official Docker installation script will note that it detected your WSL environment and recommend a Windows product instead. The script will then wait for 20 seconds. Ignore Docker. When the wait time ends you may be prompted for your password and installation will continue.
     * When finished, run the command `scripts/clean.sh` to clean up containers and database volumes.
         * During development, all options were selected when running `scripts/clean.sh` to remove any clutter that may have impeded the successful initialisation of the app. Success is not necessarily guaranteed when opting out of optional clean-up steps. Please review `scripts/clean.sh`, which is brief, before execution on your system.
     * On very rare occasions the stable app has failed during the smoke testing phase of initialisation. If this happens, run `scripts/clean.sh` and then restart the system using `./setup.sh`.
