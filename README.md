@@ -28,6 +28,7 @@ For a detailed list of planned upgrades, please refer to the [specification.](./
 For a detailed look at the design philosophy, please refer to the [specification.](docs/specification.md#design-philosophy)
 
 ## How to Use
+### Quick Start
 * This application is developed and tested in a Linux environment.
     * If you're using Windows, it's recommended to set up [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to ensure compatibility.
 * Clone the repository and navigate to the root directory of the project.
@@ -214,7 +215,7 @@ CONQUEST-LIMS/
 ```
 
 ### Initialising the App
-Refer to the [How to Use](#how-to-use) section. `setup.sh` handles app initialisation.
+Refer to the [Quick Start](#how-to-use) section. `setup.sh` handles app initialisation.
 
 ### Operation
 #### API Base URL
