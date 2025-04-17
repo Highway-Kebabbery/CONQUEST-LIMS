@@ -96,10 +96,27 @@ check_and_prompt_install minikube \
 sudo dpkg -i minikube_latest_amd64.deb && \
 rm minikube_latest_amd64.deb"
 
-check_and_prompt_install kubectl \
-"curl -LO https://dl.k8s.io/release/\$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \
-rm kubectl"
+# I did not write this kubectl snippet myself, nor did I think of how to 
+# solve this problem myself. 
+if ! command -v kubectl &> /dev/null; then
+  echo -n "kubectl is not installed. Install it? (Y/n): "
+  read -r answer
+  case "$answer" in
+      [nN][oO]|[nN])
+          echo "kubectl is required. Exiting."
+          exit 1
+          ;;
+      *)
+          echo "Installing kubectl..."
+          version=$(curl -sL https://dl.k8s.io/release/stable.txt)
+          curl -LO --proto '=https' --tlsv1.2 -A "Mozilla/5.0" "https://dl.k8s.io/release/${version}/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          rm kubectl
+          ;;
+  esac
+else
+  echo "kubectl is already installed."
+fi
 
 minikube start --driver=docker
 eval $(minikube docker-env)
