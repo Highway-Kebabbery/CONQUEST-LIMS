@@ -37,7 +37,7 @@ check_and_prompt_install docker \
 sh get-docker.sh && \
 rm get-docker.sh && \
 sudo usermod -aG docker \$USER && \
-echo 'Docker installed. Restart your terminal and then rerun ./setup.sh.\n \
+echo -e 'Docker installed. Restart your terminal and then rerun ./setup.sh.\n \
 NOTE: '\''exec \$SHELL'\'' is not guaranteed to work for this operation on WSL.' && \
 exit 0"
 
