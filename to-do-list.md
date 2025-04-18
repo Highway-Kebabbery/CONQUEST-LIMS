@@ -1,1 +1,0 @@
-* Perform a clean reinstall of WSL and the project to ensure it works like the README says it does for set-up.
